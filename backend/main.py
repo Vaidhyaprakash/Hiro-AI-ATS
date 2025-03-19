@@ -13,15 +13,18 @@ import base64
 import asyncio
 import mediapipe as mp
 import torch
+import os
 from ultralytics.nn.tasks import DetectionModel
 from resumefilter import process_resumes
 
 
+# Set environment variable to disable the new security behavior
+os.environ['TORCH_FORCE_WEIGHTS_ONLY'] = '0'
 
 app = FastAPI(title="HR AI Tool API")
 
-# Load YOLOv8 model with safe loading
-model = YOLO("yolov8n.pt", task="detect")  # Specify task explicitly
+# Load YOLOv8 model with weights_only=False
+model = YOLO("yolov8n.pt", task="detect")
 
 # MediaPipe Face Mesh
 mp_face_mesh = mp.solutions.face_mesh
