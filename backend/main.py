@@ -12,10 +12,15 @@ from ultralytics import YOLO
 import base64
 import asyncio
 import mediapipe as mp
+import torch
+from ultralytics.nn.tasks import DetectionModel
+
+
+
 app = FastAPI(title="HR AI Tool API")
 
-    # Load YOLOv8 model
-model = YOLO("yolov8n.pt")  # Or use yolov8s.pt for better accuracy
+# Load YOLOv8 model with safe loading
+model = YOLO("yolov8n.pt", task="detect")  # Specify task explicitly
 
 # MediaPipe Face Mesh
 mp_face_mesh = mp.solutions.face_mesh
