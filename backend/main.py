@@ -16,7 +16,7 @@ import torch
 import os
 from ultralytics.nn.tasks import DetectionModel
 from resumefilter import process_resumes
-
+from jobdescgen import generate_job_requirements
 
 # Set environment variable to disable the new security behavior
 os.environ['TORCH_FORCE_WEIGHTS_ONLY'] = '0'
@@ -58,6 +58,14 @@ class Question(BaseModel):
     answer: Optional[str] = None
 
 # Routes
+class JobDescriptionRequest(BaseModel):
+    job_title: str
+    job_description: str
+    job_requirements: str
+    job_responsibilities: str
+    job_qualifications: str
+    job_salary: str
+
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
@@ -223,7 +231,21 @@ async def generate_questions(request: QuestionGenerationRequest):
         return questions
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+    
+@app.post("/job_description/generate")
+async def generate_job_description(request: JobDescriptionRequest):
+    try:
+        #TODO: Implement job description generation logic
+        job_description = generate_job_requirements(request.job_title, request.job_description, request.job_requirements, request.job_responsibilities, request.job_qualifications, request.job_salary)
+        return {
+            "job_description": job_description,
+            "message": "Job description generation started",
+            "status": "processing"
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
+    
 @app.post("/api/video/analyze")
 async def analyze_video(file: UploadFile = File(...)):
     try:
