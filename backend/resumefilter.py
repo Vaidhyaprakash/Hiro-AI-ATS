@@ -72,5 +72,5 @@ def process_resumes():
     job_desc = generate_job_description(resume_texts)
     scores = score_resumes(job_desc, resume_texts)
 
-    output = {"job_description": job_desc, "resumes": scores}
+    output = {"resumes": scores}
     print(json.dumps(output, indent=4))
