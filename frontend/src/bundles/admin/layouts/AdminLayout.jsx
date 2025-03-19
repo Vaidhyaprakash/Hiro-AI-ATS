@@ -13,7 +13,7 @@ function AdminLayout() {
     }}>
       <Navbar />
       <Box css={{
-        width: '200px',
+        width: '100%',
         height: '100%',
       }}>
         <Outlet />

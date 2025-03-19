@@ -1,4 +1,4 @@
-import { Flex, Text } from "@sparrowengg/twigs-react";
+import { Flex } from "@sparrowengg/twigs-react";
 import IntroMap from "../../../components/admin/Dashboard/IntroMap";
 import Barchart from "../../../components/admin/Dashboard/Barchart";
 
@@ -134,6 +134,7 @@ const Dashboard = () => {
         flexDirection: 'column',
         overflowY: 'auto',
         gap: '$4',
+        width: '100%',
       }}>
         <IntroMap data={dummyData} />
         <Barchart data={dummyData} />

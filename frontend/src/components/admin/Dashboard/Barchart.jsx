@@ -18,6 +18,10 @@ const Barchart = ({ data }) => {
   return (
     <Box css={{
       backgroundColor: '$white900',
+      height: '800px',
+      '.recharts-wrapper': {
+        height: '600px !important',
+      }
     }}>
       <BarChart
         width={800}

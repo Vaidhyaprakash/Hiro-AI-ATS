@@ -1,4 +1,4 @@
-import { Flex, Text } from "@sparrowengg/twigs-react";
+import { Button, Flex, Text } from "@sparrowengg/twigs-react";
 
 const IntroMap = ({ data }) => {
   const introMapTitles = [
@@ -38,7 +38,7 @@ const IntroMap = ({ data }) => {
         marginBottom: 0,
       },
       padding: '$12',
-      width: '100vw',
+      width: '100%',
       borderBottom: '1px solid $secondary100',
     }}>
       <Flex css={{

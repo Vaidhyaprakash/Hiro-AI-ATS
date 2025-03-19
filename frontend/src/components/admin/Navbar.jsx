@@ -1,6 +1,6 @@
 import { Avatar, Box, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, Flex, Text, Tooltip } from '@sparrowengg/twigs-react'
 import React from 'react'
-import Logo02 from '../../assets/Logo02.png'
+import logo02 from '../../assets/logo02.png'
 import { BellIcon, EmailIcon, HomeIcon, SettingsIcon, UsersIcon, WrenchIcon } from '@sparrowengg/twigs-react-icons'
 import { useNavigate } from 'react-router-dom'
 const navigationItems = [
@@ -103,6 +103,7 @@ const NavbarRightSettings = () => {
 }
 const NavbarLeft = ({ activePage }) => {
   const navigate = useNavigate()
+  console.log(activePage)
   return (
     <>
       <Flex css={{
@@ -112,7 +113,7 @@ const NavbarLeft = ({ activePage }) => {
         justifyContent: 'center',
         alignItems: 'center'
       }}>
-        <img src={Logo02} alt="logo" style={{ width: '36px', height: '36px' }} />
+        <img src={logo02} alt="logo" style={{ width: '36px', height: '36px' }} />
       </Flex>
       <Flex gap="$8" css={{
         fontWeight: '700',
