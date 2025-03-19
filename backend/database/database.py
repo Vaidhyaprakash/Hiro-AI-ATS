@@ -6,7 +6,7 @@ import os
 
 load_dotenv()
 
-SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/hr_ai_tool")
+SQLALCHEMY_DATABASE_URL = "postgresql://exam_user:exam_password@localhost:5432/exam_db"
 
 engine = create_engine(SQLALCHEMY_DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
