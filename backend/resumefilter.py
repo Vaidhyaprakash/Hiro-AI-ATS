@@ -65,7 +65,7 @@ def score_resumes(job_description: str, resumes: List[str]) -> List[Dict[str, st
     return results
 
 
-if __name__ == "__main__":
+def process_resumes():
     resume_files = ["resume1.pdf", "resume2.pdf"]
     resume_texts = [extract_text(resume) for resume in resume_files]
 
