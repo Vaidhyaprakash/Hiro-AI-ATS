@@ -1,4 +1,4 @@
-from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi import FastAPI, UploadFile, File, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Optional
@@ -14,6 +14,7 @@ import asyncio
 import mediapipe as mp
 import torch
 from ultralytics.nn.tasks import DetectionModel
+from resumefilter import process_resumes
 
 
 
@@ -194,13 +195,12 @@ async def root():
     return {"message": "HR AI Tool API"}
 
 @app.post("/api/resume/analyze")
-async def analyze_resume(file: UploadFile = File(...)):
+async def analyze_resume(background_tasks: BackgroundTasks):
     try:
-        # TODO: Implement resume analysis logic
+        background_tasks.add_task(process_resumes)
         return {
-            "message": "Resume analysis completed",
-            "filename": file.filename,
-            "status": "success"
+            "message": "Resume analysis started",
+            "status": "processing"
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
