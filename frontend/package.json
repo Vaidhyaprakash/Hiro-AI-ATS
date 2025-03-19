@@ -1,0 +1,40 @@
+{
+  "name": "hr",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "rsbuild build",
+    "dev": "rsbuild dev --open",
+    "preview": "rsbuild preview"
+  },
+  "dependencies": {
+    "@mantine/core": "^7.17.2",
+    "@sparrowengg/twigs-react": "^0.34.3",
+    "@sparrowengg/twigs-react-icons": "^0.3.5",
+    "babel-plugin-react-compiler": "^19.0.0-beta-3229e95-20250315",
+    "lexical": "^0.28.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-router-dom": "^7.3.0",
+    "recharts": "^2.15.1"
+  },
+  "devDependencies": {
+    "@rsbuild/core": "^1.2.16",
+    "@rsbuild/plugin-babel": "^1.0.4",
+    "@rsbuild/plugin-react": "^1.1.1",
+    "@babel/core": "^7.24.0",
+    "@babel/preset-env": "^7.24.0",
+    "@babel/preset-react": "^7.23.3",
+    "@lexical/code": "0.13.1",
+    "@lexical/html": "0.13.1",
+    "@lexical/link": "0.13.1",
+    "@lexical/list": "0.13.1",
+    "@lexical/markdown": "0.13.1",
+    "@lexical/overflow": "0.13.1",
+    "@lexical/react": "0.13.1",
+    "@lexical/rich-text": "0.13.1",
+    "@lexical/selection": "0.13.1",
+    "@lexical/utils": "0.13.1"
+  }
+}
