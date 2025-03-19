@@ -38,6 +38,8 @@ class Candidate(Base):
     email = Column(String, unique=True, index=True)
     status = Column(String)  # e.g., "applied", "screening", "interviewed", "hired", "rejected"
     resume_s3_link = Column(String)
+    assessment_score = Column(Float, nullable=True)  # New column for assessment score
+    resume_score = Column(Float, nullable=True)  # New column for resume score
     job_id = Column(Integer, ForeignKey("jobs.id"))
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
