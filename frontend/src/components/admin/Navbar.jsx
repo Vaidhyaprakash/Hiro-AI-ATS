@@ -22,6 +22,12 @@ const navigationItems = [
     id: 'candidates',
     icon: <UsersIcon size={20} />
   },
+  {
+    label: 'Exams',
+    href: '/exam/session',
+    id: 'examsession',
+    icon: <UsersIcon size={20} />
+  }
 ]
 const settingsItems = [
   {

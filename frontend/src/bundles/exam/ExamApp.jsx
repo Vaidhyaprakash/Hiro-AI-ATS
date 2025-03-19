@@ -54,7 +54,7 @@ const ExamApp = () => {
 
           <Route element={<ExamLayout />}>
             <Route path="instructions" element={<ExamInstructions />} />
-            <Route path="session" element={<ExamSession />} />
+            <Route path="/session" element={<ExamSession />} />
             <Route path="submitted" element={<ExamSubmitted />} />
             <Route path="" element={<Navigate to="login" replace />} />
           </Route>
