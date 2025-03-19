@@ -5,7 +5,7 @@ pydantic==2.6.1
 opencv-python==4.9.0.80
 numpy==1.26.4
 ultralytics==8.1.2
-mediapipe==0.10.9
+mediapipe==0.10.21
 python-jose==3.3.0
 passlib==1.7.4
 bcrypt==4.1.2
