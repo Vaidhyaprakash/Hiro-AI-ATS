@@ -56,9 +56,12 @@ class Candidate(Base):
     location = Column(String(255))
     college = Column(String(255))
     skills = Column(Text)
+    job_id = Column(Integer, ForeignKey("jobs.id"))
+    resume_s3_url = Column(String(512))
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
+    job = relationship("Job", back_populates="candidates")
     applications = relationship("Application", back_populates="candidate")
     performance_reviews = relationship("PerformanceReview", back_populates="candidate")
     exit_predictions = relationship("ExitPrediction", back_populates="candidate")
