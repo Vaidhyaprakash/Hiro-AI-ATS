@@ -6,8 +6,10 @@ from models.models import ApplicationStatus
 # Company schemas
 class CompanyBase(BaseModel):
     name: str
-    industry: str
-    description: Optional[str] = None
+    departments: Optional[List[str]] = None
+    locations: Optional[List[str]] = None
+    company_size: Optional[int] = None
+    website: Optional[str] = None
 
 class CompanyCreate(CompanyBase):
     pass
