@@ -275,7 +275,6 @@ async def correct_paper(request: PaperCorrectionRequest):
         raise HTTPException(status_code=500, detail=str(e))
     
 
-
 @app.post("/api/companies/register", response_model=CompanyResponse)
 async def register_new_company(
     request: CompanyRegistrationRequest,
