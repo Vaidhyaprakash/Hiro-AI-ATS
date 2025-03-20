@@ -404,5 +404,36 @@ async def get_job_candidates(
         for c in candidates
     ]
 
+@app.get("/api/candidates/{job_id}")
+async def get_candidates_by_job_id(
+    job_id: int,
+    status: CandidateStatus,
+    db: Session = Depends(get_db)
+):
+    """
+    Get all candidates for a specific job.
+    """
+    candidates = db.query(Candidate).filter(Candidate.job_id == job_id, Candidate.status == status).all()
+    return candidates
+
+@app.post("/api/candidates/{candidate_id}/update-status")
+async def update_candidate_status(
+    candidate_id: int,
+    status: CandidateStatus,
+    db: Session = Depends(get_db)
+):
+    """
+    Update the status of a candidate.
+    """
+    candidate = db.query(Candidate).filter(Candidate.id == candidate_id).first()
+    candidate.status = status
+    db.commit()
+    return {
+        "message": "Candidate status updated successfully",
+        "status": status
+    }
+
+
+
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True) 
