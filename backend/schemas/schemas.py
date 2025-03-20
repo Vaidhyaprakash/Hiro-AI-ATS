@@ -41,6 +41,16 @@ class Job(JobBase):
     class Config:
         from_attributes = True
 
+class JobResponse(JobBase):
+    id: int
+    company_id: int
+    created_at: datetime
+    updated_at: datetime
+    company_name: str
+
+    class Config:
+        from_attributes = True
+
 # Candidate schemas
 class CandidateBase(BaseModel):
     name: str
@@ -109,4 +119,33 @@ class ApplicationFeedbackPayload(BaseModel):
     company_id: int
 
     class Config:
-        from_attributes = True 
+        from_attributes = True
+
+# Assessment schemas
+class AssessmentBase(BaseModel):
+    difficulty: int
+    properties: dict
+    type: str
+    title: str
+
+class AssessmentCreate(AssessmentBase):
+    pass
+
+class Assessment(AssessmentBase):
+    id: int
+    job_id: int
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class AssessmentRequest(BaseModel):
+    difficulty: int
+    properties: dict
+    type: str
+    title: str
+
+class ApplicationFeedbackRequest(JobBase):
+    company_id: int
+    assessments: List[AssessmentRequest] 

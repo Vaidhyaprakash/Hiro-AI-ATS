@@ -18,10 +18,10 @@ from ultralytics.nn.tasks import DetectionModel
 from resumefilter import process_resumes
 from jobdescgen import generate_job_requirements 
 from exam import websocket_endpoint, get_logs
-from applications import create_application_feedback, register_company, CompanyResponse, get_application_feedback
+from applications import create_application_feedback, register_company, CompanyResponse, get_application_feedback, get_company_jobs
 from database.database import get_db
 from sqlalchemy.orm import Session
-from schemas.schemas import ApplicationFeedbackPayload
+from schemas.schemas import ApplicationFeedbackPayload, JobResponse, ApplicationFeedbackRequest
 
 # Set environment variable to disable the new security behavior
 os.environ['TORCH_FORCE_WEIGHTS_ONLY'] = '0'
@@ -62,12 +62,19 @@ class Question(BaseModel):
     options: Optional[List[str]] = None
     answer: Optional[str] = None
 
+class AssessmentRequest(BaseModel):
+    difficulty: int
+    properties: dict
+    type: str
+    title: str
+
 class ApplicationFeedbackRequest(BaseModel):
     company_id: int
     job_title: str
     job_description: Optional[str] = None
     requirements: Optional[str] = None
     properties: Optional[dict] = None
+    assessments: List[AssessmentRequest]
 
 class CompanyRegistrationRequest(BaseModel):
     name: str
@@ -111,11 +118,7 @@ async def submit_application_feedback(
     """
     return await create_application_feedback(
         db=db,
-        company_id=request.company_id,
-        job_title=request.job_title,
-        job_description=request.job_description,
-        requirements=request.requirements,
-        properties=request.properties
+        job_data=request
     )
 
 @app.post("/api/resume/analyze")
@@ -208,6 +211,23 @@ async def submit_candidate_application(
         db=db,
         payload=request
     )
+
+@app.get("/api/companies/{company_id}/jobs", response_model=List[JobResponse])
+async def get_jobs_for_company(
+    company_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    Get all jobs for a specific company.
+    
+    Args:
+        company_id: ID of the company
+        db: Database session
+    
+    Returns:
+        List[JobResponse]: List of jobs with company details
+    """
+    return await get_company_jobs(db=db, company_id=company_id)
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True) 
