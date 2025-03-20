@@ -41,6 +41,16 @@ class Job(JobBase):
     class Config:
         from_attributes = True
 
+class JobResponse(JobBase):
+    id: int
+    company_id: int
+    created_at: datetime
+    updated_at: datetime
+    company_name: str
+
+    class Config:
+        from_attributes = True
+
 # Candidate schemas
 class CandidateBase(BaseModel):
     name: str
