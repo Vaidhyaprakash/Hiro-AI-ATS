@@ -7,7 +7,7 @@ from typing import List, Dict
 import re  
 
 # Load Ollama model
-MODEL_NAME = "tinyllama"
+MODEL_NAME = "llama3"
 
 def extract_text_from_pdf(pdf_path: str) -> str:
     with pdfplumber.open(pdf_path) as pdf:
@@ -51,7 +51,6 @@ def score_resumes(job_description: str, resumes: List[str]) -> List[Dict[str, st
         response = ollama.chat(model=MODEL_NAME, messages=[{"role": "user", "content": prompt}])
         
         try:
-            print(response['message']['content'])
             match = re.search(r"\{.*\}", response['message']['content'], re.DOTALL)
             result = json.loads(match.group(0))
             if isinstance(result, dict) and "score" in result and "summary" in result:

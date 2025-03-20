@@ -1,7 +1,7 @@
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
-from models.models import Company, Job, Candidate, Application, ApplicationStatus
-from schemas.schemas import CompanyCreate, JobCreate, ApplicationFeedbackPayload
+from models.models import Company, Job, Candidate, Application, ApplicationStatus, Assessment
+from schemas.schemas import CompanyCreate, JobCreate, ApplicationFeedbackPayload, JobResponse, ApplicationFeedbackRequest
 import httpx
 from typing import Optional, List
 import urllib.parse
@@ -85,8 +85,7 @@ async def register_company(
 
 async def create_application_feedback(
     db: Session,
-    company_id: int,
-    job_title: str,
+    job_data: ApplicationFeedbackRequest,
     feedback_url: str = "https://krish-test.salesparrow.com/s/Job-Application-Feedback-Survey/tt-TDNyY"
 ) -> dict:
     """
@@ -94,8 +93,7 @@ async def create_application_feedback(
     
     Args:
         db: Database session
-        company_id: ID of the company
-        job_title: Title of the job
+        job_data: JobCreateWithAssessments containing job and assessment details
         feedback_url: URL to send feedback to (optional)
     
     Returns:
@@ -103,41 +101,69 @@ async def create_application_feedback(
     """
     try:
         # Get company from database
-        company = db.query(Company).filter(Company.id == company_id).first()
+        company = db.query(Company).filter(Company.id == job_data.company_id).first()
         if not company:
             raise HTTPException(
                 status_code=404,
-                detail=f"Company with ID {company_id} not found"
+                detail=f"Company with ID {job_data.company_id} not found"
             )
 
         # Create job in database
         job = Job(
-            title=job_title,
-            company_id=company_id,
-            description=f"Position for {job_title} at {company.name}"
+            title=job_data.title,
+            job_description=job_data.job_description or f"Position for {job_data.title} at {company.name}",
+            requirements=job_data.requirements,
+            company_id=job_data.company_id,
+            properties=job_data.properties
         )
         db.add(job)
         db.commit()
         db.refresh(job)
 
+        # Create assessments
+        created_assessments = []
+        for assessment_data in job_data.assessments:
+            assessment = Assessment(
+                job_id=job.id,
+                difficulty=assessment_data.difficulty,
+                properties=assessment_data.properties,
+                type=assessment_data.type,
+                title=assessment_data.title
+            )
+            db.add(assessment)
+            created_assessments.append(assessment)
+        db.commit()
+
         # Prepare query parameters
         params = {
             "company": company.name,
-            "job_titile": job_title,  # Note: Using 'job_titile' as per the URL format
+            "job_titile": job.title,  # Note: Using 'job_titile' as per the URL format
             "job_id": job.id,
-            "company_id": company_id
+            "company_id": company.id
         }
         
         # Construct URL with proper query parameters
         encoded_params = urllib.parse.urlencode(params)
         feedback_url_with_params = f"{feedback_url}?{encoded_params}"
 
-        
-
         return {
-            "company_id": company_id,
+            "company_id": company.id,
             "company_name": company.name,
             "job_id": job.id,
+            "job_title": job.title,
+            "job_description": job.job_description,
+            "requirements": job.requirements,
+            "properties": job.properties,
+            "assessments": [
+                {
+                    "id": assessment.id,
+                    "difficulty": assessment.difficulty,
+                    "properties": assessment.properties,
+                    "type": assessment.type,
+                    "title": assessment.title
+                }
+                for assessment in created_assessments
+            ],
             "feedback_url": feedback_url_with_params
         }
 
@@ -150,8 +176,7 @@ async def create_application_feedback(
         raise HTTPException(
             status_code=500,
             detail=f"Failed to create application feedback: {str(e)}"
-        ) 
-
+        )
 
 async def get_application_feedback(
     db: Session,
@@ -230,5 +255,55 @@ async def get_application_feedback(
         raise HTTPException(
             status_code=500,
             detail=f"Failed to process application feedback: {str(e)}"
+        ) 
+
+async def get_company_jobs(
+    db: Session,
+    company_id: int
+) -> List[JobResponse]:
+    """
+    Get all jobs for a specific company.
+    
+    Args:
+        db: Database session
+        company_id: ID of the company
+    
+    Returns:
+        List[JobResponse]: List of jobs with company details
+    """
+    try:
+        # Get company from database
+        company = db.query(Company).filter(Company.id == company_id).first()
+        if not company:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Company with ID {company_id} not found"
+            )
+
+        # Get all jobs for the company
+        jobs = db.query(Job).filter(Job.company_id == company_id).all()
+        
+        # Convert to response model
+        return [
+            JobResponse(
+                id=job.id,
+                title=job.title,
+                job_description=job.job_description,
+                requirements=job.requirements,
+                properties=job.properties,
+                company_id=job.company_id,
+                created_at=job.created_at,
+                updated_at=job.updated_at,
+                company_name=company.name
+            )
+            for job in jobs
+        ]
+
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to get company jobs: {str(e)}"
         ) 
         
