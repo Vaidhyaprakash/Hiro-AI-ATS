@@ -85,7 +85,6 @@ class Candidate(Base):
     applications = relationship("Application", back_populates="candidate")
     performance_reviews = relationship("PerformanceReview", back_populates="candidate")
     exit_predictions = relationship("ExitPrediction", back_populates="candidate")
-    tests = relationship("Test", back_populates="candidate")
     assessments = relationship("CandidateAssessment", back_populates="candidate")
     answers = relationship("Answer", back_populates="candidate")
 

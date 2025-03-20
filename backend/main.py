@@ -2,7 +2,7 @@ from fastapi import FastAPI, UploadFile, File, HTTPException, BackgroundTasks, W
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, EmailStr
 from typing import List, Optional
-from models.models import CandidateAssessment
+from models.models import CandidateAssessment, Assessment, AssessmentStatus
 from sqlalchemy.orm import Session
 from database.database import get_db
 import uvicorn
@@ -136,7 +136,7 @@ class CandidateResponse(BaseModel):
     class Config:
         from_attributes = True
 
-app.websocket("/ws/{candidate_id}")
+@app.websocket("/ws/{candidate_id}")
 async def websocket_handler(websocket: WebSocket, candidate_id: int, db: Session = Depends(get_db)):
     return await websocket_endpoint(websocket, candidate_id, db)
 

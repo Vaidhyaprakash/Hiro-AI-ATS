@@ -129,7 +129,7 @@ export default function ExamSession() {
       const totalScore = (passedTests / testCases.length) * 100
       
       await axios.post('http://localhost:8000/api/submit-score', {
-        examId: examState.examId,
+        assessmentId: examState.examId,
         candidateId: candidateId,
         score: totalScore,
         honestyScore: monitoringStatus.honesty_score
@@ -227,53 +227,55 @@ export default function ExamSession() {
       const waitForVideo = () => {
         if (videoRef.current?.readyState === videoRef.current?.HAVE_ENOUGH_DATA) {
           // Set initial canvas size
-          canvas.width = videoRef.current.videoWidth || 640
-          canvas.height = videoRef.current.videoHeight || 480
+          if (videoRef.current) {
+            canvas.width = videoRef.current.videoWidth || 640
+            canvas.height = videoRef.current.videoHeight || 480
 
-          // Start the interval
-          intervalId = setInterval(() => {
-            if (!videoRef.current || !wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
-              console.log('Skipping frame:', {
-                videoReady: !!videoRef.current,
-                wsReady: !!wsRef.current,
-                wsState: wsRef.current?.readyState
-              })
-              return
-            }
-
-            try {
-              // Update canvas size if video dimensions change
-              if (canvas.width !== videoRef.current.videoWidth || canvas.height !== videoRef.current.videoHeight) {
-                canvas.width = videoRef.current.videoWidth
-                canvas.height = videoRef.current.videoHeight
+            // Start the interval
+            intervalId = setInterval(() => {
+              if (!videoRef.current || !wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+                console.log('Skipping frame:', {
+                  videoReady: !!videoRef.current,
+                  wsReady: !!wsRef.current,
+                  wsState: wsRef.current?.readyState
+                })
+                return
               }
 
-              // Draw the current video frame
-              ctx.drawImage(videoRef.current, 0, 0)
+              try {
+                // Update canvas size if video dimensions change
+                if (canvas.width !== videoRef.current.videoWidth || canvas.height !== videoRef.current.videoHeight) {
+                  canvas.width = videoRef.current.videoWidth
+                  canvas.height = videoRef.current.videoHeight
+                }
 
-              // Convert to blob and send
-              canvas.toBlob(
-                (blob) => {
-                  if (blob && wsRef.current?.readyState === WebSocket.OPEN) {
-                    const reader = new FileReader()
-                    reader.onloadend = () => {
-                      if (typeof reader.result === 'string') {
-                        const base64data = reader.result.split(',')[1]
-                        wsRef.current?.send(base64data)
-                        frameCount++
-                        console.log('Frame sent:', frameCount)
+                // Draw the current video frame
+                ctx.drawImage(videoRef.current, 0, 0)
+
+                // Convert to blob and send
+                canvas.toBlob(
+                  (blob) => {
+                    if (blob && wsRef.current?.readyState === WebSocket.OPEN) {
+                      const reader = new FileReader()
+                      reader.onloadend = () => {
+                        if (typeof reader.result === 'string') {
+                          const base64data = reader.result.split(',')[1]
+                          wsRef.current?.send(base64data)
+                          frameCount++
+                          console.log('Frame sent:', frameCount)
+                        }
                       }
+                      reader.readAsDataURL(blob)
                     }
-                    reader.readAsDataURL(blob)
-                  }
-                },
-                'image/jpeg',
-                0.8
-              )
-            } catch (error) {
-              console.error('Error sending frame:', error)
-            }
-          }, 100) // Send frame every 100ms
+                  },
+                  'image/jpeg',
+                  0.8
+                )
+              } catch (error) {
+                console.error('Error sending frame:', error)
+              }
+            }, 100) // Send frame every 100ms
+          }
         } else {
           // Wait for video to be ready
           console.log('Waiting for video data...')
