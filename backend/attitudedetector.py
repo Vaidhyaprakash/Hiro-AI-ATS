@@ -110,14 +110,7 @@ def analyze_audio(audio_path):
         "enthusiasm": min(1, pitch_mean / 300)  # Normalize enthusiasm (0-1)
     }
 
-S3_ENDPOINT_URL = "http://localhost:4566"  # LocalStack URL
-S3_BUCKET_NAME = "videos"
-AWS_ACCESS_KEY = "test"
-AWS_SECRET_KEY = "test"
 
-# Ensure bucket exists
-s3_client = boto3.client("s3", endpoint_url=S3_ENDPOINT_URL, aws_access_key_id=AWS_ACCESS_KEY, aws_secret_access_key=AWS_SECRET_KEY)
-s3_client.create_bucket(Bucket=S3_BUCKET_NAME)
 
 # Function to extract audio
 def extract_audio(video_path, audio_path):
@@ -143,33 +136,7 @@ def compare_with_culture(attitude_params):
     return match_scores, overall_match
 
 
-    """Fetch video & audio from S3, analyze both, and compare with organization culture code."""
-
-    s3 = boto3.client("s3", endpoint_url=S3_ENDPOINT_URL, aws_access_key_id=AWS_ACCESS_KEY, aws_secret_access_key=AWS_SECRET_KEY)
-    # Fetch Video
-    video_response = s3.get_object(Bucket=S3_BUCKET_NAME, Key=video_key)
-    video_data = video_response["Body"].read()
-    video_path = f"/tmp/{video_key}"
-    with open(video_path, "wb") as f:
-        f.write(video_data)
-
-    # Fetch Audio
-    audio_response = s3.get_object(Bucket=S3_BUCKET_NAME, Key=audio_key)
-    audio_data = audio_response["Body"].read()
-    audio_path = f"/tmp/{audio_key}"
-    with open(audio_path, "wb") as f:
-        f.write(audio_data)
-
-    # 🔍 Step 1: Analyze Video (Facial Expressions & Gestures)
-    video_results = analyze_video(video_path)
-
-    # 🔍 Step 2: Analyze Audio (Speech Tone, Transcription)
-    audio_results = analyze_audio(audio_path)
-
-    # 🔍 Step 3: Compare Results with Culture Code (Example Logic)
-    final_analysis = compare_with_culture(video_results, audio_results)
-
-    print(f"✅ Final Analysis: {final_analysis}")
+    
 
 def extract_audio(video_bytes: bytes, audio_file_path: str):
     """Extract audio from in-memory video and upload to S3."""
