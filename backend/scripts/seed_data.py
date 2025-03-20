@@ -8,11 +8,44 @@ from database.database import SessionLocal, engine
 from models.models import (
     Company, Job, Candidate, Application, Interview, Offer,
     PerformanceReview, Interviewer, Source, ExitPrediction,
-    ApplicationStatus, SourceType, Assessment, CandidateStatus
+    ApplicationStatus, SourceType, Assessment, CandidateStatus,
+    AssessmentStatus, QuestionType, CandidateAssessment, Question,
+    Answer, AttitudeAnalysis
 )
+from sqlalchemy import text
+
+def clear_data():
+    db = SessionLocal()
+    try:
+        # Delete data in reverse order of dependencies
+        db.execute(text("DELETE FROM attitude_analysis"))
+        db.execute(text("DELETE FROM answers"))
+        db.execute(text("DELETE FROM questions"))
+        db.execute(text("DELETE FROM candidate_assessments"))
+        db.execute(text("DELETE FROM exit_predictions"))
+        db.execute(text("DELETE FROM performance_reviews"))
+        db.execute(text("DELETE FROM offers"))
+        db.execute(text("DELETE FROM interviews"))
+        db.execute(text("DELETE FROM applications"))
+        db.execute(text("DELETE FROM candidates"))
+        db.execute(text("DELETE FROM interviewers"))
+        db.execute(text("DELETE FROM sources"))
+        db.execute(text("DELETE FROM assessments"))
+        db.execute(text("DELETE FROM jobs"))
+        db.execute(text("DELETE FROM companies"))
+        db.commit()
+    except Exception as e:
+        print(f"Error clearing data: {e}")
+        db.rollback()
+    finally:
+        db.close()
 
 def seed_data():
     db = SessionLocal()
+    
+    # Clear existing data first
+    clear_data()
+    
     try:
         # Seed Companies
         companies = []
@@ -50,6 +83,7 @@ def seed_data():
         db.commit()
 
         # Seed Assessments
+        assessments = []
         assessment_types = ["Technical", "Coding", "System Design", "Problem Solving", "Behavioral"]
         for i in range(10):
             assessment = Assessment(
@@ -64,6 +98,7 @@ def seed_data():
                 title=f"{roles[i]} Assessment"
             )
             db.add(assessment)
+            assessments.append(assessment)
         db.commit()
 
         # Seed Sources
@@ -109,8 +144,8 @@ def seed_data():
                 job_id=jobs[i].id,
                 company_id=companies[i].id,
                 resume_s3_url=f"https://s3.amazonaws.com/resumes/candidate{i+1}.pdf",
-                assessment_score=random.uniform(60.0, 100.0),
-                resume_score=random.uniform(70.0, 100.0),
+                assessment_score=random.uniform(0.6, 1.0),
+                resume_score=random.uniform(0.7, 1.0),
                 resume_summary=f"Experienced {roles[i]} with strong technical skills and proven track record in software development.",
                 test_summary=f"Completed technical assessment with {random.randint(70, 100)}% accuracy. Strong problem-solving skills demonstrated.",
                 status=random.choice(list(CandidateStatus))
@@ -135,20 +170,23 @@ def seed_data():
         db.commit()
 
         # Seed Interviews
+        interviews = []
         for i in range(10):
             interview = Interview(
-                application_id=applications[i].id,
+                candidate_id=candidates[i].id,
                 interviewer_id=interviewers[i].id,
                 interview_date=datetime.utcnow() - timedelta(days=random.randint(1, 30)),
                 feedback="Good technical skills and cultural fit",
-                culture_fit_score=random.uniform(3.5, 5.0),
-                attitude_score=random.uniform(3.5, 5.0),
-                contribution_score=random.uniform(3.5, 5.0)
+                culture_fit_score=random.uniform(0.7, 1.0),
+                attitude_score=random.uniform(0.7, 1.0),
+                contribution_score=random.uniform(0.7, 1.0)
             )
             db.add(interview)
+            interviews.append(interview)
         db.commit()
 
         # Seed Offers
+        offers = []
         for i in range(10):
             offer = Offer(
                 application_id=applications[i].id,
@@ -156,20 +194,24 @@ def seed_data():
                 accepted=random.choice([True, False])
             )
             db.add(offer)
+            offers.append(offer)
         db.commit()
 
         # Seed Performance Reviews
+        performance_reviews = []
         for i in range(10):
             review = PerformanceReview(
                 candidate_id=candidates[i].id,
                 review_date=datetime.utcnow() - timedelta(days=random.randint(30, 90)),
-                performance_score=random.uniform(3.0, 5.0),
+                performance_score=random.uniform(0.6, 1.0),
                 expectation_delivery_timeline=timedelta(days=random.randint(30, 90))
             )
             db.add(review)
+            performance_reviews.append(review)
         db.commit()
 
         # Seed Exit Predictions
+        exit_predictions = []
         for i in range(10):
             prediction = ExitPrediction(
                 candidate_id=candidates[i].id,
@@ -178,6 +220,82 @@ def seed_data():
                 warning_signs="High workload, Limited growth opportunities"
             )
             db.add(prediction)
+            exit_predictions.append(prediction)
+        db.commit()
+
+        # Seed CandidateAssessments
+        candidate_assessments = []
+        for i in range(10):
+            candidate_assessment = CandidateAssessment(
+                candidate_id=candidates[i].id,
+                assessment_id=assessments[i].id,
+                status=random.choice(list(AssessmentStatus)),
+                honesty_score=random.uniform(0.8, 1.0),
+                overall_score=random.uniform(0.6, 1.0),
+                properties={
+                    "time_taken": random.randint(20, 90),
+                    "attempts": random.randint(1, 3)
+                }
+            )
+            db.add(candidate_assessment)
+            candidate_assessments.append(candidate_assessment)
+        db.commit()
+
+        # Seed Questions
+        questions = []
+        question_prompts = [
+            "Implement a binary search algorithm",
+            "Design a scalable microservices architecture",
+            "Explain SOLID principles",
+            "Write a function to detect palindromes",
+            "Describe your experience with agile methodologies"
+        ]
+        for i in range(10):
+            for j in range(5):  # 5 questions per assessment
+                question = Question(
+                    type=random.choice(list(QuestionType)),
+                    job_id=jobs[i].id,
+                    assessment_id=assessments[i].id,
+                    properties={
+                        "prompt": random.choice(question_prompts),
+                        "time_limit": random.randint(5, 30),
+                        "points": random.randint(10, 20)
+                    }
+                )
+                db.add(question)
+                questions.append(question)
+        db.commit()
+
+        # Seed Answers
+        for i in range(10):
+            for j in range(5):  # 5 answers per candidate
+                question_idx = i * 5 + j
+                answer = Answer(
+                    question_id=questions[question_idx].id,
+                    candidate_id=candidates[i].id,
+                    candidate_assessment_id=candidate_assessments[i].id,
+                    score=random.uniform(0.6, 1.0),
+                    answer="Sample answer to the technical question...",
+                    properties={
+                        "time_taken": random.randint(2, 25),
+                        "language": random.choice(["Python", "Java", "JavaScript"])
+                    }
+                )
+                db.add(answer)
+        db.commit()
+
+        # Seed AttitudeAnalysis
+        for i in range(10):
+            attitude_analysis = AttitudeAnalysis(
+                candidate_id=candidates[i].id,
+                job_id=jobs[i].id,
+                culture_fit_score=random.uniform(0.6, 1.0),
+                confidence_score=random.uniform(0.6, 1.0),
+                positivity_score=random.uniform(0.6, 1.0),
+                enthusiasm_score=random.uniform(0.6, 1.0),
+                calmness_score=random.uniform(0.6, 1.0)
+            )
+            db.add(attitude_analysis)
         db.commit()
 
     finally:

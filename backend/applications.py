@@ -1,6 +1,6 @@
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
-from models.models import Company, Job, Candidate, Application, ApplicationStatus, Assessment
+from models.models import Company, Job, Candidate, Assessment
 from schemas.schemas import CompanyCreate, JobCreate, ApplicationFeedbackPayload, JobResponse, ApplicationFeedbackRequest
 import httpx
 from typing import Optional, List

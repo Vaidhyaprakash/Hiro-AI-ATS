@@ -31,6 +31,7 @@ import io
 import sys
 from models.models import Candidate, CandidateStatus, Job, AttitudeAnalysis
 import uuid
+from candidate_analytics import get_candidate_performance_metrics
 
 
 # Set environment variable to disable the new security behavior
@@ -450,6 +451,34 @@ async def analyze_attitude(db: Session = Depends(get_db)):
         "message": "Attitude analysis completed successfully",
         "attitude_analysis": attitude_analysis
     }
+
+@app.get("/api/candidates/{candidate_id}/analytics")
+async def get_candidate_analytics(
+    candidate_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    Get comprehensive analytics for a candidate including:
+    - Technical skills assessment
+    - Behavioral analysis
+    - Performance metrics
+    - Application progress
+    - Timeline of events
+    - Strengths and weaknesses
+    
+    Returns data formatted for various visualizations including:
+    - Radar charts
+    - Timeline views
+    - Score distributions
+    - Progress indicators
+    """
+    try:
+        metrics = get_candidate_performance_metrics(db, candidate_id)
+        if "error" in metrics:
+            raise HTTPException(status_code=404, detail=metrics["error"])
+        return metrics
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True) 
