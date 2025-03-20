@@ -2,7 +2,7 @@ from fastapi import FastAPI, UploadFile, File, HTTPException, BackgroundTasks, W
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, EmailStr
 from typing import List, Optional
-from models.models import CandidateAssessment, Assessment, AssessmentStatus
+from models.models import CandidateAssessment, Assessment, AssessmentStatus, Question as DBQuestion, QuestionType, Answer
 from sqlalchemy.orm import Session
 from database.database import get_db
 import uvicorn
@@ -67,6 +67,11 @@ class Question(BaseModel):
     options: Optional[List[str]] = None
     answer: Optional[str] = None
 
+class QuestionResponse(BaseModel):
+    id: int
+    txt: str
+    properties: dict
+
 class AssessmentRequest(BaseModel):
     difficulty: int
     properties: dict
@@ -109,13 +114,14 @@ class JobDescriptionRequest(BaseModel):
 class CodeSubmission(BaseModel):
     code: str
     testCases: List[dict]
-    examId: int
+    assessmentId: int
 
 class ScoreSubmission(BaseModel):
     assessmentId: int
     candidateId: int
     score: float
     honestyScore: float
+
 class CandidateResponse(BaseModel):
     id: Optional[int] = None
     name: Optional[str] = None
@@ -135,6 +141,21 @@ class CandidateResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+class AssessmentResponse(BaseModel):
+    id: int
+    title: str
+    type: str
+    difficulty: int
+    assessment_link: Optional[str]
+    questions: List[dict]
+
+class AnswerSubmission(BaseModel):
+    questionId: int
+    candidateId: int
+    assessmentId: int
+    answer: str
+    score: float
 
 @app.websocket("/ws/{candidate_id}")
 async def websocket_handler(websocket: WebSocket, candidate_id: int, db: Session = Depends(get_db)):
@@ -395,6 +416,83 @@ async def get_job_candidates(
         }
         for c in candidates
     ]
+
+@app.get("/api/assessments/{assessment_id}", response_model=AssessmentResponse)
+async def get_assessment(assessment_id: int, db: Session = Depends(get_db)):
+    """
+    Get assessment details including coding questions
+    """
+    try:
+        assessment = db.query(Assessment).filter(Assessment.id == assessment_id).first()
+        if not assessment:
+            raise HTTPException(status_code=404, detail="Assessment not found")
+
+        # Get coding questions for this assessment
+        questions = db.query(DBQuestion).filter(
+            DBQuestion.assessment_id == assessment_id,
+            DBQuestion.type == QuestionType.CODING
+        ).all()
+
+        return {
+            "id": assessment.id,
+            "title": assessment.title,
+            "type": assessment.type,
+            "difficulty": assessment.difficulty,
+            "assessment_link": assessment.assessment_link,
+            "questions": [{
+                "id": q.id,
+                "txt": q.txt,
+                "properties": q.properties
+            } for q in questions]
+        }
+    except Exception as e:
+        print(f"Error in get_assessment: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/submit-answer")
+async def submit_answer(submission: AnswerSubmission, db: Session = Depends(get_db)):
+    """
+    Submit an answer for a coding question
+    """
+    try:
+        # First verify or create candidate assessment
+        candidate_assessment = db.query(CandidateAssessment).filter(
+            CandidateAssessment.candidate_id == submission.candidateId,
+            CandidateAssessment.assessment_id == submission.assessmentId
+        ).first()
+        
+        if not candidate_assessment:
+            # Create new assessment if it doesn't exist
+            candidate_assessment = CandidateAssessment(
+                candidate_id=submission.candidateId,
+                assessment_id=submission.assessmentId,
+                honesty_score=100,  # Default value
+                overall_score=0,    # Will be updated later
+                status="IN_PROGRESS"
+            )
+            db.add(candidate_assessment)
+            db.commit()
+            db.refresh(candidate_assessment)
+
+        # Create new answer
+        answer = Answer(
+            question_id=submission.questionId,
+            candidate_id=submission.candidateId,
+            candidate_assessment_id=candidate_assessment.id,  # Use the actual ID
+            score=submission.score,
+            answer=submission.answer
+        )
+        db.add(answer)
+        db.commit()
+        
+        return {
+            "message": "Answer submitted successfully",
+            "answerId": answer.id
+        }
+    except Exception as e:
+        print(f"Error in submit_answer: {str(e)}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True) 
