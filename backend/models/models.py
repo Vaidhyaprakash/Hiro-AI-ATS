@@ -184,6 +184,7 @@ class Assessment(Base):
     properties = Column(JSON, nullable=True)
     type = Column(String(255), nullable=False)
     title = Column(String(255), nullable=False)
+    assessment_link = Column(String(512), nullable=True)
     job_id = Column(Integer, ForeignKey("jobs.id", ondelete="CASCADE"))
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
@@ -226,6 +227,7 @@ class Question(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     type = Column(Enum(QuestionType))
+    txt = Column(Text, nullable=True)
     job_id = Column(Integer, ForeignKey("jobs.id"))
     assessment_id = Column(Integer, ForeignKey("assessments.id"))
     properties = Column(JSON, nullable=True)
