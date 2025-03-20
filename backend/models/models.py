@@ -57,6 +57,7 @@ class Job(Base):
     candidates = relationship("Candidate", back_populates="job")
     applications = relationship("Application", back_populates="job")
     assessments = relationship("Assessment", back_populates="job")
+    questions = relationship("Question", back_populates="job")
 
 class Candidate(Base):
     __tablename__ = "candidates"
@@ -84,6 +85,9 @@ class Candidate(Base):
     applications = relationship("Application", back_populates="candidate")
     performance_reviews = relationship("PerformanceReview", back_populates="candidate")
     exit_predictions = relationship("ExitPrediction", back_populates="candidate")
+    tests = relationship("Test", back_populates="candidate")
+    assessments = relationship("CandidateAssessment", back_populates="candidate")
+    answers = relationship("Answer", back_populates="candidate")
 
 class Application(Base):
     __tablename__ = "applications"
@@ -177,12 +181,77 @@ class Assessment(Base):
     __tablename__ = "assessments"
 
     id = Column(Integer, primary_key=True, index=True)
-    job_id = Column(Integer, ForeignKey("jobs.id", ondelete="CASCADE"))
     difficulty = Column(Integer, nullable=False)
     properties = Column(JSON, nullable=True)
     type = Column(String(255), nullable=False)
     title = Column(String(255), nullable=False)
+    job_id = Column(Integer, ForeignKey("jobs.id", ondelete="CASCADE"))
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
-    job = relationship("Job", back_populates="assessments") 
+    job = relationship("Job", back_populates="assessments")
+    candidate_assessments = relationship("CandidateAssessment", back_populates="assessment")
+    questions = relationship("Question", back_populates="assessment")
+
+class AssessmentStatus(str, enum.Enum):
+    PENDING = "pending"
+    IN_PROGRESS = "in_progress"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
+class QuestionType(str, enum.Enum):
+    CODING = "coding"
+    MCQ = "mcq"
+    ESSAY = "essay"
+
+class CandidateAssessment(Base):
+    __tablename__ = "candidate_assessments"
+
+    id = Column(Integer, primary_key=True, index=True)
+    candidate_id = Column(Integer, ForeignKey("candidates.id"))
+    assessment_id = Column(Integer, ForeignKey("assessments.id"))
+    status = Column(Enum(AssessmentStatus), default=AssessmentStatus.PENDING)
+    honesty_score = Column(Float, default=100.0)
+    overall_score = Column(Float, default=0.0)
+    properties = Column(JSON, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # Relationships
+    candidate = relationship("Candidate", back_populates="assessments")
+    assessment = relationship("Assessment", back_populates="candidate_assessments")
+    answers = relationship("Answer", back_populates="candidate_assessment")
+
+class Question(Base):
+    __tablename__ = "questions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    type = Column(Enum(QuestionType))
+    job_id = Column(Integer, ForeignKey("jobs.id"))
+    assessment_id = Column(Integer, ForeignKey("assessments.id"))
+    properties = Column(JSON, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # Relationships
+    job = relationship("Job", back_populates="questions")
+    assessment = relationship("Assessment", back_populates="questions")
+    answers = relationship("Answer", back_populates="question")
+
+class Answer(Base):
+    __tablename__ = "answers"
+
+    id = Column(Integer, primary_key=True, index=True)
+    question_id = Column(Integer, ForeignKey("questions.id"))
+    candidate_id = Column(Integer, ForeignKey("candidates.id"))
+    candidate_assessment_id = Column(Integer, ForeignKey("candidate_assessments.id"))
+    score = Column(Float, default=0.0)
+    answer = Column(String)
+    properties = Column(JSON, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # Relationships
+    question = relationship("Question", back_populates="answers")
+    candidate = relationship("Candidate", back_populates="answers")
+    candidate_assessment = relationship("CandidateAssessment", back_populates="answers") 

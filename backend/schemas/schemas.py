@@ -149,4 +149,61 @@ class AssessmentRequest(BaseModel):
 
 class ApplicationFeedbackRequest(JobBase):
     company_id: int
-    assessments: List[AssessmentRequest] 
+    assessments: List[AssessmentRequest]
+
+# Candidate Assessment schemas
+class CandidateAssessmentBase(BaseModel):
+    candidate_id: int
+    assessment_id: int
+    status: str  # e.g., 'pending', 'in_progress', 'completed'
+    honesty_score: float
+    overall_score: float
+    properties: dict  # For storing additional assessment-specific data
+
+class CandidateAssessmentCreate(CandidateAssessmentBase):
+    pass
+
+class CandidateAssessment(CandidateAssessmentBase):
+    id: int
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+# Question schemas for assessments
+class QuestionBase(BaseModel):
+    type: str  # e.g., 'coding', 'mcq', 'essay'
+    job_id: int
+    properties: dict  # Store question content, options, etc.
+    assessment_id: int
+
+class QuestionCreate(QuestionBase):
+    pass
+
+class Question(QuestionBase):
+    id: int
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+# Answer schemas
+class AnswerBase(BaseModel):
+    question_id: int
+    candidate_id: int
+    score: float
+    answer: str  # Store the actual answer content
+    properties: dict  # For any additional answer metadata
+
+class AnswerCreate(AnswerBase):
+    pass
+
+class Answer(AnswerBase):
+    id: int
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True 

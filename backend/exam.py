@@ -1,4 +1,4 @@
-from fastapi import WebSocket, WebSocketDisconnect
+from fastapi import WebSocket, WebSocketDisconnect, Depends
 from datetime import datetime
 import cv2
 import numpy as np
@@ -6,6 +6,9 @@ import base64
 import asyncio
 import mediapipe as mp
 from ultralytics import YOLO
+from sqlalchemy.orm import Session
+from database.database import get_db
+from models.models import CandidateAssessment
 
 # Load YOLOv8 model with weights_only=False
 model = YOLO("yolov8n.pt", task="detect")
@@ -15,13 +18,23 @@ mp_face_mesh = mp.solutions.face_mesh
 face_mesh = mp_face_mesh.FaceMesh(static_image_mode=False, max_num_faces=5)
 
 # Detection log and honesty score tracking
-detection_log = []
-total_frames = 0
-penalty_frames = 0
+class CandidateSession:
+    def __init__(self):
+        self.detection_log = []
+        self.total_frames = 0
+        self.penalty_frames = 0
+        self.last_honesty_score = 100.0
 
-async def websocket_endpoint(websocket: WebSocket):
+# Store sessions by candidate ID
+candidate_sessions = {}
+
+async def websocket_endpoint(websocket: WebSocket, candidate_id: int, db: Session = Depends(get_db)):
     await websocket.accept()
-    global total_frames, penalty_frames
+    
+    # Initialize or get candidate session
+    if candidate_id not in candidate_sessions:
+        candidate_sessions[candidate_id] = CandidateSession()
+    session = candidate_sessions[candidate_id]
 
     try:
         while True:
@@ -108,27 +121,28 @@ async def websocket_endpoint(websocket: WebSocket):
                 cv2.putText(frame, "No Face", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
 
             # Honesty score update
-            total_frames += 1
+            session.total_frames += 1
             dishonesty_detected = phone_detected or face_away_detected or no_face_detected or multiple_faces_detected
             if dishonesty_detected:
-                penalty_frames += 1
-                detection_log.append({
+                session.penalty_frames += 1
+                session.detection_log.append({
                     "timestamp": datetime.now().isoformat(),
-                    "frame": total_frames,
+                    "frame": session.total_frames,
                     "event": f"{'Phone' if phone_detected else ''} {'Face Away' if face_away_detected else ''} {'No Face' if no_face_detected else ''} {'Multiple Faces' if multiple_faces_detected else ''}".strip()
                 })
 
-            honesty_score = round(100 * (1 - penalty_frames / total_frames), 2)
+            honesty_score = round(100 * (1 - session.penalty_frames / session.total_frames), 2)
+            session.last_honesty_score = honesty_score
 
             # Log frame with timestamp
-            print(f"Frame {total_frames} | Honesty Score: {honesty_score}% | Time: {datetime.now().isoformat()}")
+            print(f"Candidate {candidate_id} | Frame {session.total_frames} | Honesty Score: {honesty_score}% | Time: {datetime.now().isoformat()}")
 
             # Encode frame with annotations to base64 (optional)
             _, buffer = cv2.imencode('.jpg', frame)
             frame_base64 = base64.b64encode(buffer).decode('utf-8')
 
             await websocket.send_json({
-                "frame": total_frames,
+                "frame": session.total_frames,
                 "phone_detected": phone_detected,
                 "face_away_detected": face_away_detected,
                 "no_face_detected": no_face_detected,
@@ -141,11 +155,33 @@ async def websocket_endpoint(websocket: WebSocket):
             await asyncio.sleep(0.1)
 
     except WebSocketDisconnect:
-        print("Client disconnected")
+        print(f"Client disconnected for candidate {candidate_id}")
+        # Update candidate assessment with final honesty score
+        try:
+            candidate_assessment = db.query(CandidateAssessment).filter(
+                CandidateAssessment.candidate_id == candidate_id
+            ).first()
+            
+            if candidate_assessment:
+                candidate_assessment.honesty_score = session.last_honesty_score
+                db.commit()
+                print(f"Updated honesty score for candidate {candidate_id}: {session.last_honesty_score}%")
+        except Exception as e:
+            print(f"Error updating honesty score: {e}")
+        finally:
+            # Clean up session
+            if candidate_id in candidate_sessions:
+                del candidate_sessions[candidate_id]
 
-async def get_logs():
-    score = round(100 * (1 - penalty_frames / total_frames), 2) if total_frames > 0 else 100
+async def get_logs(candidate_id: int):
+    if candidate_id not in candidate_sessions:
+        return {
+            "detection_log": [],
+            "honesty_score": 100
+        }
+    
+    session = candidate_sessions[candidate_id]
     return {
-        "detection_log": detection_log,
-        "honesty_score": score
+        "detection_log": session.detection_log,
+        "honesty_score": session.last_honesty_score
     } 

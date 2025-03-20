@@ -2,6 +2,9 @@ from fastapi import FastAPI, UploadFile, File, HTTPException, BackgroundTasks, W
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, EmailStr
 from typing import List, Optional
+from models.models import CandidateAssessment
+from sqlalchemy.orm import Session
+from database.database import get_db
 import uvicorn
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
@@ -19,8 +22,6 @@ from resumefilter import process_resumes
 from jobdescgen import generate_job_requirements 
 from exam import websocket_endpoint, get_logs
 from applications import create_application_feedback, register_company, CompanyResponse, get_application_feedback, get_company_jobs, get_job_by_id
-from database.database import get_db
-from sqlalchemy.orm import Session
 from schemas.schemas import ApplicationFeedbackPayload, JobResponse, ApplicationFeedbackRequest
 import io
 import sys
@@ -46,10 +47,11 @@ app = FastAPI(title="HR AI Tool API")
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=["*"],  # For development only, update in production
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"]
 )
 
 # Models
@@ -110,7 +112,8 @@ class CodeSubmission(BaseModel):
     examId: int
 
 class ScoreSubmission(BaseModel):
-    examId: int
+    assessmentId: int
+    candidateId: int
     score: float
     honestyScore: float
 class CandidateResponse(BaseModel):
@@ -133,8 +136,13 @@ class CandidateResponse(BaseModel):
     class Config:
         from_attributes = True
 
-app.websocket("/ws")(websocket_endpoint)
-app.get("/logs")(get_logs)
+app.websocket("/ws/{candidate_id}")
+async def websocket_handler(websocket: WebSocket, candidate_id: int, db: Session = Depends(get_db)):
+    return await websocket_endpoint(websocket, candidate_id, db)
+
+@app.get("/logs/{candidate_id}")
+async def get_candidate_logs(candidate_id: int):
+    return await get_logs(candidate_id)
 
 @app.get("/")
 async def root():
@@ -297,14 +305,41 @@ async def submit_code(submission: CodeSubmission):
     return {"results": results}
 
 @app.post("/api/submit-score")
-async def submit_score(submission: ScoreSubmission):
-    # TODO: Store the score in your database
-    return {
-        "message": "Score submitted successfully",
-        "examId": submission.examId,
-        "score": submission.score,
-        "honestyScore": submission.honestyScore
-    }
+async def submit_score(submission: ScoreSubmission, db: Session = Depends(get_db)):
+    try:
+        # Find or create candidate assessment
+        candidate_assessment = db.query(CandidateAssessment).filter(
+            CandidateAssessment.candidate_id == submission.candidateId
+        ).first()
+        
+        if not candidate_assessment:
+            # Create new assessment if it doesn't exist
+            candidate_assessment = CandidateAssessment(
+                candidate_id=submission.candidateId,
+                assessment_id=submission.assessmentId,
+                honesty_score=submission.honestyScore,
+                overall_score=submission.score,
+                status="IN_PROGRESS"
+            )
+            db.add(candidate_assessment)
+        else:
+            # Update existing assessment
+            candidate_assessment.honesty_score = submission.honestyScore
+            candidate_assessment.overall_score = submission.score
+            
+        db.commit()
+        
+        return {
+            "message": "Score submitted successfully",
+            "assessmentId": submission.assessmentId,
+            "candidateId": submission.candidateId,
+            "score": submission.score,
+            "honestyScore": submission.honestyScore
+        }
+            
+    except Exception as e:
+        print(f"Error in submit_score: {str(e)}")  # Add logging
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/jobs/{job_id}", response_model=JobResponse)
 async def get_job(
