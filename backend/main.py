@@ -2,7 +2,7 @@ from fastapi import FastAPI, UploadFile, File, HTTPException, BackgroundTasks, W
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, EmailStr
 from typing import List, Optional
-from models.models import CandidateAssessment, Assessment, AssessmentStatus
+from models.models import CandidateAssessment, Assessment, AssessmentStatus, Question as DBQuestion, QuestionType, Answer
 from sqlalchemy.orm import Session
 from database.database import get_db
 import uvicorn
@@ -33,6 +33,10 @@ from models.models import Candidate, CandidateStatus, Job, AttitudeAnalysis
 import uuid
 from candidate_analytics import get_candidate_performance_metrics
 
+from models.models import Candidate, CandidateStatus, Job
+from questionGenerator import generate_questions
+from paperCorrection import correct_answer, paper_correction
+from leads import find_candidates
 
 # Set environment variable to disable the new security behavior
 os.environ['TORCH_FORCE_WEIGHTS_ONLY'] = '0'
@@ -71,10 +75,31 @@ class QuestionGenerationRequest(BaseModel):
     difficulty: str
     additional_requirements: Optional[str] = None
 
+class QuestionSetGenerationRequest(BaseModel):
+    num_mcq: int
+    num_openended: int
+    num_coding: int
+    difficulty: str
+    job_role: str
+    skills: List[str]
+
+class Answer(BaseModel):
+    question_type: str
+    question: str
+    answer: str
+
+class PaperCorrectionRequest(BaseModel):
+    questions: List[Answer]
+
 class Question(BaseModel):
     question: str
     options: Optional[List[str]] = None
     answer: Optional[str] = None
+
+class QuestionResponse(BaseModel):
+    id: int
+    txt: str
+    properties: dict
 
 class AssessmentRequest(BaseModel):
     difficulty: int
@@ -118,13 +143,14 @@ class JobDescriptionRequest(BaseModel):
 class CodeSubmission(BaseModel):
     code: str
     testCases: List[dict]
-    examId: int
+    assessmentId: int
 
 class ScoreSubmission(BaseModel):
     assessmentId: int
     candidateId: int
     score: float
     honestyScore: float
+
 class CandidateResponse(BaseModel):
     id: Optional[int] = None
     name: Optional[str] = None
@@ -144,6 +170,26 @@ class CandidateResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+class AssessmentResponse(BaseModel):
+    id: int
+    title: str
+    type: str
+    difficulty: int
+    assessment_link: Optional[str]
+    questions: List[dict]
+
+class AnswerSubmission(BaseModel):
+    questionId: int
+    candidateId: int
+    assessmentId: int
+    answer: str
+    score: float
+
+class LeadGenerationRequest(BaseModel):
+    job_id: int
+    skills: List[str]
+    location: str
 
 @app.websocket("/ws/{candidate_id}")
 async def websocket_handler(websocket: WebSocket, candidate_id: int, db: Session = Depends(get_db)):
@@ -182,21 +228,21 @@ async def analyze_resume(job_id: int, background_tasks: BackgroundTasks, db: Ses
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.post("/api/questions/generate", response_model=List[Question])
-async def generate_questions(request: QuestionGenerationRequest):
-    try:
-        # TODO: Implement question generation logic
-        # This is a mock response
-        questions = [
-            Question(
-                question=f"Sample question for {request.topic}",
-                options=["Option A", "Option B", "Option C", "Option D"],
-                answer="Option A"
-            )
-        ]
-        return questions
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+# @app.post("/api/questions/generate", response_model=List[Question])
+# async def generate_questions(request: QuestionGenerationRequest):
+#     try:
+#         # TODO: Implement question generation logic
+#         # This is a mock response
+#         questions = [
+#             Question(
+#                 question=f"Sample question for {request.topic}",
+#                 options=["Option A", "Option B", "Option C", "Option D"],
+#                 answer="Option A"
+#             )
+#         ]
+#         return questions
+#     except Exception as e:
+#         raise HTTPException(status_code=500, detail=str(e))
     
 @app.post("/job_description/generate")
 async def generate_job_description(request: JobDescriptionRequest):
@@ -211,8 +257,33 @@ async def generate_job_description(request: JobDescriptionRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-    
+@app.post("/api/questions/generate")
+async def question_set_generation(request: QuestionSetGenerationRequest):
+    try:
+        #TODO: Implement job description generation logic
+        question_set = generate_questions(request.num_mcq, request.num_openended, request.num_coding, request.difficulty, request.job_role, request.skills)
+        return question_set
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
+@app.post("/api/correct-answer")
+async def correct_question(request: Answer):
+    try:
+        #TODO: Implement job description generation logic
+        mark = correct_answer(request.question, request.answer, request.question_type)
+        return mark
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
+@app.post("/api/paper/correction")
+async def correct_paper(request: PaperCorrectionRequest):
+    try:
+        #TODO: Implement job description generation logic
+        mark = paper_correction(request.questions)
+        return mark
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
 
 @app.post("/api/companies/register", response_model=CompanyResponse)
 async def register_new_company(
@@ -479,6 +550,136 @@ async def get_candidate_analytics(
         return metrics
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+@app.get("/api/assessments/{assessment_id}", response_model=AssessmentResponse)
+async def get_assessment(assessment_id: int, db: Session = Depends(get_db)):
+    """
+    Get assessment details including coding questions
+    """
+    try:
+        assessment = db.query(Assessment).filter(Assessment.id == assessment_id).first()
+        if not assessment:
+            raise HTTPException(status_code=404, detail="Assessment not found")
+
+        # Get coding questions for this assessment
+        questions = db.query(DBQuestion).filter(
+            DBQuestion.assessment_id == assessment_id,
+            DBQuestion.type == QuestionType.CODING
+        ).all()
+
+        return {
+            "id": assessment.id,
+            "title": assessment.title,
+            "type": assessment.type,
+            "difficulty": assessment.difficulty,
+            "assessment_link": assessment.assessment_link,
+            "questions": [{
+                "id": q.id,
+                "txt": q.txt,
+                "properties": q.properties
+            } for q in questions]
+        }
+    except Exception as e:
+        print(f"Error in get_assessment: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/submit-answer")
+async def submit_answer(submission: AnswerSubmission, db: Session = Depends(get_db)):
+    """
+    Submit an answer for a coding question
+    """
+    try:
+        # First verify or create candidate assessment
+        candidate_assessment = db.query(CandidateAssessment).filter(
+            CandidateAssessment.candidate_id == submission.candidateId,
+            CandidateAssessment.assessment_id == submission.assessmentId
+        ).first()
+        
+        if not candidate_assessment:
+            # Create new assessment if it doesn't exist
+            candidate_assessment = CandidateAssessment(
+                candidate_id=submission.candidateId,
+                assessment_id=submission.assessmentId,
+                honesty_score=100,  # Default value
+                overall_score=0,    # Will be updated later
+                status="COMPLETED"
+            )
+            db.add(candidate_assessment)
+        else:
+            # Update existing assessment status to completed
+            candidate_assessment.status = "COMPLETED"
+            candidate_assessment.overall_score = submission.score
+            
+        db.commit()
+        db.refresh(candidate_assessment)
+
+        # Create new answer
+        answer = Answer(
+            question_id=submission.questionId,
+            candidate_id=submission.candidateId,
+            candidate_assessment_id=candidate_assessment.id,  # Use the actual ID
+            score=submission.score,
+            answer=submission.answer
+        )
+        db.add(answer)
+        db.commit()
+        
+        return {
+            "message": "Answer submitted successfully",
+            "answerId": answer.id
+        }
+    except Exception as e:
+        print(f"Error in submit_answer: {str(e)}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/assessment-status/{candidate_id}/{assessment_id}")
+async def get_assessment_status(
+    candidate_id: int,
+    assessment_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    Check if a candidate has completed an assessment
+    """
+    try:
+        candidate_assessment = db.query(CandidateAssessment).filter(
+            CandidateAssessment.candidate_id == candidate_id,
+            CandidateAssessment.assessment_id == assessment_id
+        ).first()
+
+        if not candidate_assessment:
+            return {
+                "status": "NOT_STARTED",
+                "score": 0,
+                "honesty_score": 0
+            }
+
+        return {
+            "status": candidate_assessment.status,
+            "score": candidate_assessment.overall_score,
+            "honesty_score": candidate_assessment.honesty_score
+        }
+    except Exception as e:
+        print(f"Error in get_assessment_status: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/leads/generate")
+async def generate_candidate_leads(
+    request: LeadGenerationRequest,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db)
+):
+    """
+    Generate candidate leads from Reddit based on job ID, required skills, and location.
+    The lead generation process runs in the background and is limited to evaluating 30 candidates.
+    """
+    return await find_candidates(
+        job_id=request.job_id,
+        skills=request.skills,
+        location=request.location,
+        db=db,
+        background_tasks=background_tasks
+    )
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True) 

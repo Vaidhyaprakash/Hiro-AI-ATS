@@ -11,6 +11,12 @@ class CandidateStatus(str, enum.Enum):
     INTERVIEW_1 = "Interview 1"
     INTERVIEW_2 = "Interview 2"
     HIRED = "Hired"
+    ASSESSMENT = "Assessment"
+    OFFER_EXTENDED = "Offer Extended"
+    REJECTED = "Rejected"
+    INTERVIEW = "Interview"
+    TECHNICAL_ROUND = "Technical Round"
+    HR_ROUND = "HR Round"
 
 class SourceType(str, enum.Enum):
     COLLEGE = "College"
@@ -50,6 +56,7 @@ class Job(Base):
     assessments = relationship("Assessment", back_populates="job")
     questions = relationship("Question", back_populates="job")
     attitude_analysis = relationship("AttitudeAnalysis", back_populates="job")
+    leads = relationship("Lead", back_populates="job")
 
 class Candidate(Base):
     __tablename__ = "candidates"
@@ -143,6 +150,7 @@ class Assessment(Base):
     properties = Column(JSON, nullable=True)
     type = Column(String(255), nullable=False)
     title = Column(String(255), nullable=False)
+    assessment_link = Column(String(512), nullable=True)  # Link to the assessment
     job_id = Column(Integer, ForeignKey("jobs.id", ondelete="CASCADE"))
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
@@ -184,6 +192,7 @@ class Question(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     type = Column(Enum(QuestionType))
+    txt = Column(Text, nullable=False)  # Question text content
     job_id = Column(Integer, ForeignKey("jobs.id"))
     assessment_id = Column(Integer, ForeignKey("assessments.id"))
     properties = Column(JSON, nullable=True)
@@ -227,3 +236,25 @@ class AttitudeAnalysis(Base):
 
     candidate = relationship("Candidate", back_populates="attitude_analysis")
     job = relationship("Job", back_populates="attitude_analysis")
+class Lead(Base):
+    __tablename__ = "leads"
+
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String)
+    platform = Column(String)  # e.g. "Reddit"
+    profile_url = Column(String)
+    summary = Column(Text)
+    relevance_score = Column(Integer)
+    job_title = Column(String)
+    job_id = Column(Integer, ForeignKey("jobs.id"))  # Reference to the job
+    skills = Column(ARRAY(String))  # Array of skills
+    location = Column(String)  # Location of the candidate
+    email = Column(String, nullable=True, unique=True)  # Email address if found, unique constraint
+    contact_info = Column(Text, nullable=True)  # Other contact methods
+    subreddit = Column(String)
+    status = Column(String, default="NEW")  # NEW, CONTACTED, RESPONDED, REJECTED
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relationship to Job
+    job = relationship("Job", back_populates="leads") 
