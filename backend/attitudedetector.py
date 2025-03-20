@@ -173,6 +173,33 @@ async def process_video_and_audio(video_key, audio_key):
 
     print(f"✅ Final Analysis: {final_analysis}")
 
+def extract_audio(video_bytes: bytes, audio_s3_key: str):
+    """Extract audio from in-memory video and upload to S3."""
+    try:
+        video_temp = "temp_video.mp4"
+        audio_temp = "temp_audio.aac"
+
+        # Save video to a temporary file
+        with open(video_temp, "wb") as temp_file:
+            temp_file.write(video_bytes)
+
+        # Extract audio using MoviePy
+        video = VideoFileClip(video_temp)
+        video.audio.write_audiofile(audio_temp, codec="aac")
+
+        # Upload extracted audio to S3
+        with open(audio_temp, "rb") as audio_file:
+            upload_to_s3(audio_file.read(), audio_s3_key)
+
+        # Cleanup
+        os.remove(video_temp)
+        os.remove(audio_temp)
+
+        print(f"🎤 Extracted and uploaded audio: {audio_s3_key}")
+
+    except Exception as e:
+        print(f"❌ Error extracting audio: {e}")
+
 # Example Usage
 # video_path = "candidate_interview.mp4"
 # audio_path = extract_audio_from_video(video_path)
