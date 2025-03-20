@@ -1,16 +1,14 @@
-import type React from "react"
 import type { Metadata } from "next"
 import { Inter } from "next/font/google"
 import "./globals.css"
-import { ReduxProvider } from "@/lib/redux/provider"
-import { ThemeProvider } from "@/components/theme-provider"
+import { ProvidersWrapper } from "@/components/providers-wrapper"
 
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
   title: "HR Recruit Platform",
   description: "A comprehensive HR recruitment platform",
-    generator: 'v0.dev'
+  generator: 'v0.dev'
 }
 
 export default function RootLayout({
@@ -19,16 +17,14 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en">
-      <body className={inter.className}>
-        <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false} disableTransitionOnChange>
-          <ReduxProvider>{children}</ReduxProvider>
-        </ThemeProvider>
+    <html lang="en" style={{
+      fontFamily: "DM Sans"
+    }}>
+      <body className={inter.className} style={{fontFamily: "DM Sans"}}>
+        <ProvidersWrapper>{children}</ProvidersWrapper>
       </body>
     </html>
   )
 }
 
 
-
-import './globals.css'

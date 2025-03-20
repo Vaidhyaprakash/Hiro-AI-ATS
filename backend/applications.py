@@ -110,8 +110,8 @@ async def create_application_feedback(
 
         # Create job in database
         job = Job(
-            title=job_data.title,
-            job_description=job_data.job_description or f"Position for {job_data.title} at {company.name}",
+            title=job_data.job_title,
+            job_description=job_data.job_description or f"Position for {job_data.job_title} at {company.name}",
             requirements=job_data.requirements,
             company_id=job_data.company_id,
             properties=job_data.properties

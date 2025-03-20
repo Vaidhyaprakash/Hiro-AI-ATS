@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useCallback } from "react"
 import { useDispatch } from "react-redux"
 import { addJob } from "@/lib/redux/jobsSlice"
 import { Button } from "@/components/ui/button"
@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { X } from "lucide-react"
-import { Flex, Stepper, StepperItem } from "@sparrowengg/twigs-react";
+import { Flex, Stepper, StepperItem, toast } from "@sparrowengg/twigs-react";
 import { AssessmentComponent } from "./assessment-component"
 
 interface JobFormModalProps {
@@ -21,6 +21,7 @@ interface JobFormModalProps {
 export function JobFormModal({ isOpen, onClose }: JobFormModalProps) {
   const dispatch = useDispatch()
   const [step, setStep] = useState(1)
+  const [surveyLink, setSurveyLink] = useState("")
   const [formData, setFormData] = useState({
     title: "",
     department: "",
@@ -32,6 +33,7 @@ export function JobFormModal({ isOpen, onClose }: JobFormModalProps) {
     hiringLead: "",
     status: "Draft" as "Open" | "Draft",
   })
+  const [assessments, setAssessments] = useState<any[]>([])
 
   const departments = [
     "Engineering",
@@ -64,39 +66,81 @@ export function JobFormModal({ isOpen, onClose }: JobFormModalProps) {
     setFormData((prev) => ({ ...prev, [name]: value }))
   }
 
+  const handleAssessmentsChange = useCallback((newAssessments: any[]) => {
+    setAssessments(newAssessments);
+  }, []);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (step < 4) {
-      setStep(step + 1)
-    } else {
-      dispatch(
-        addJob({
-          ...formData,
-          status: "Open",
-        }),
-      )
-      console.log("API call to create job:", formData)
-      onClose()
-      setStep(1)
-      setFormData({
-        title: "",
-        department: "",
-        employmentType: "",
-        experience: "",
-        compensation: "",
-        location: "",
-        description: "",
-        hiringLead: "",
-        status: "Draft",
-      })
+    if (step < 3) {
+      if (step === 2) {
+        const payload = {
+          company_id: 9,
+          job_title: formData.title,
+          job_description: formData.description,
+          requirements: formData.experience,
+          properties: {
+            department: formData.department,
+            employmentType: formData.employmentType,
+            compensation: formData.compensation,
+            location: formData.location,
+            hiringLead: formData.hiringLead,
+            status: "Open"
+          },
+          assessments: assessments,
+        }
+    
+        // Make API call to create job
+        fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/application/feedback`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(payload)
+        })
+        .then(response => {
+          if (!response.ok) {
+            throw new Error('Failed to create job')
+          }
+          return response.json()
+        })
+          .then(data => {
+            const responseData = data
+            responseData.title = data.job_title
+            responseData.id = data.job_id
+            console.log(data)
+            dispatch(addJob(responseData))
+            setSurveyLink(data.feedback_url)
+          setStep(step + 1)
+        })
+        .catch(error => {
+          console.error('Error creating job:', error)
+        })
+      } else {
+        setStep(step + 1)
+      }
+      if (step === 3) {
+        setStep(1)
+        setFormData({
+          title: "",
+          department: "",
+          employmentType: "",
+          experience: "",
+          compensation: "",
+          location: "",
+          description: "",
+          hiringLead: "",
+          status: "Draft" as "Open" | "Draft",
+        })
+        onClose()
+      }
     }
   }
 
   const steps = [
     { id: 1, name: "JD" },
     { id: 2, name: "Assessment" },
-    { id: 3, name: "Emails" },
-    { id: 4, name: "Share" },
+    { id: 3, name: "Done" }
   ]
 
   // Handle stepper navigation
@@ -110,11 +154,11 @@ export function JobFormModal({ isOpen, onClose }: JobFormModalProps) {
     <div className="fixed inset-0 z-50 bg-white">
       <div className="flex h-screen flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between border-b px-6 py-4 bg-black text-white">
+        <div className="flex items-center justify-between border-b px-6 py-4">
           <h2 className="text-xl font-bold">Create New Job</h2>
           {/* Steps Navigation */}
           <div>
-            <div className="max-w-3xl mx-auto">
+            <div className="max-w-3xl mx-auto job-stepper-container">
               <Stepper 
                 activeStep={step - 1} 
                 component={{
@@ -122,11 +166,11 @@ export function JobFormModal({ isOpen, onClose }: JobFormModalProps) {
                     <Flex
                       css={{
                         '& svg': {
-                          color: '$white',
+                          color: '#005844',
                           strokeWidth: '1px',
-                          stroke: '$white',
+                          stroke: '#005844',
                           '& path': {
-                            stroke: '$white',
+                            stroke: '#005844',
                             strokeWidth: '1px',
                           }
                         }
@@ -164,7 +208,7 @@ export function JobFormModal({ isOpen, onClose }: JobFormModalProps) {
         <div className="flex-1 overflow-auto p-6">
           <div className="max-w-5xl mx-auto">
             {step === 1 && (
-              <form id="job-form" onSubmit={handleSubmit} >
+              <form id="job-form" onSubmit={handleSubmit} className="space-y-6">
                 <div className="space-y-2">
                   <Label htmlFor="title">Job Title</Label>
                   <Input
@@ -294,21 +338,49 @@ export function JobFormModal({ isOpen, onClose }: JobFormModalProps) {
                 <p className="text-muted-foreground">
                   Configure assessment questions and evaluation criteria for candidates.
                 </p>
-                <AssessmentComponent />
+                <AssessmentComponent onAssessmentsChange={handleAssessmentsChange} />
               </div>
             )}
 
             {step === 3 && (
-              <div className="space-y-4">
-                <h3 className="text-lg font-medium">Email Templates</h3>
-                <p className="text-muted-foreground">
-                  Configure email templates for different stages of the hiring process.
+              <div className="space-y-6 text-center">
+                <h3 className="text-2xl font-medium">Job Created Successfully!</h3>
+                <p className="text-muted-foreground max-w-2xl mx-auto">
+                  Your job has been created and is now ready to be shared with candidates. 
+                  Use the feedback link below to collect responses from applicants.
                 </p>
-                <div className="rounded-md bg-gray-50 p-4">
-                  <p className="text-center text-muted-foreground">
-                    Email template configuration will be implemented in the next phase.
-                  </p>
+                <div className="rounded-md border p-4 bg-gray-50 max-w-2xl mx-auto">
+                  <div className="flex items-center justify-between">
+                    <input 
+                      type="text" 
+                      value={surveyLink} 
+                      readOnly 
+                      className="w-full bg-transparent border-none focus:outline-none text-sm"
+                    />
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      style={{
+                        marginLeft: '12px',
+                        backgroundColor: '#005844',
+                        color: 'white',
+                      }}
+                      onClick={() => {
+                        navigator.clipboard.writeText(surveyLink);
+                        toast({
+                          variant: "success",
+                          title: "Link copied to clipboard!",
+                        });
+                  
+                      }}
+                    >
+                      Copy
+                    </Button>
+                  </div>
                 </div>
+                <p className="text-sm text-muted-foreground mt-4">
+                  Share this link with candidates to collect their feedback and responses.
+                </p>
               </div>
             )}
 
@@ -332,14 +404,25 @@ export function JobFormModal({ isOpen, onClose }: JobFormModalProps) {
             <Button type="button" variant="outline" onClick={() => (step > 1 ? setStep(step - 1) : onClose())}>
               {step > 1 ? "Back" : "Cancel"}
             </Button>
-            <Button
-              type="submit"
-              form={step === 1 ? "job-form" : undefined}
-              onClick={step > 1 ? handleSubmit : undefined}
-              className="bg-black hover:bg-gray-800"
-            >
-              {step < 4 ? "Next" : "Create Job"}
-            </Button>
+            {step === 3 ? (
+              <Button
+                type="button"
+                onClick={onClose}
+                className="bg-black hover:bg-gray-800"
+              >
+                Close
+              </Button>
+            ) : (
+                <Button
+                  
+                type="submit"
+                form={step === 1 ? "job-form" : undefined}
+                onClick={step > 1 ? handleSubmit : undefined}
+                className=""
+              >
+                {step === 2 ? "Save Job" : "Next"}
+              </Button>
+            )}
           </div>
         </div>
       </div>
