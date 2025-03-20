@@ -1,5 +1,6 @@
 from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, Float, Text, DateTime, JSON, Interval, Enum, UniqueConstraint
 from sqlalchemy.orm import relationship
+from sqlalchemy.sql import func
 from datetime import datetime
 from database.database import Base
 import enum
@@ -23,25 +24,24 @@ class Company(Base):
     __tablename__ = "companies"
 
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, index=True)
-    industry = Column(String)
+    name = Column(String, unique=True, index=True)
     description = Column(Text)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    website = Column(String, nullable=True)
+    location = Column(String, nullable=True)
+    industry = Column(String, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     jobs = relationship("Job", back_populates="company")
+    candidates = relationship("Candidate", back_populates="company")
 
 class Job(Base):
     __tablename__ = "jobs"
 
     id = Column(Integer, primary_key=True, index=True)
-    role = Column(String, index=True)
-    job_description = Column(Text)
-    requirements = Column(Text)
-    properties = Column(JSON)
+    title = Column(String, index=True)
+    description = Column(Text)
     company_id = Column(Integer, ForeignKey("companies.id"))
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     company = relationship("Company", back_populates="jobs")
     candidates = relationship("Candidate", back_populates="job")
@@ -57,11 +57,13 @@ class Candidate(Base):
     college = Column(String(255))
     skills = Column(Text)
     job_id = Column(Integer, ForeignKey("jobs.id"))
+    company_id = Column(Integer, ForeignKey("companies.id"))
     resume_s3_url = Column(String(512))
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     job = relationship("Job", back_populates="candidates")
+    company = relationship("Company", back_populates="candidates")
     applications = relationship("Application", back_populates="candidate")
     performance_reviews = relationship("PerformanceReview", back_populates="candidate")
     exit_predictions = relationship("ExitPrediction", back_populates="candidate")
