@@ -58,6 +58,7 @@ class Job(Base):
     applications = relationship("Application", back_populates="job")
     assessments = relationship("Assessment", back_populates="job")
     questions = relationship("Question", back_populates="job")
+    attitude_analysis = relationship("AttitudeAnalysis", back_populates="job")
 
 class Candidate(Base):
     __tablename__ = "candidates"
@@ -87,6 +88,8 @@ class Candidate(Base):
     exit_predictions = relationship("ExitPrediction", back_populates="candidate")
     assessments = relationship("CandidateAssessment", back_populates="candidate")
     answers = relationship("Answer", back_populates="candidate")
+    attitude_analysis = relationship("AttitudeAnalysis", back_populates="candidate")
+    interviews = relationship("Interview", back_populates="candidate")
 
 class Application(Base):
     __tablename__ = "applications"
@@ -103,7 +106,6 @@ class Application(Base):
     candidate = relationship("Candidate", back_populates="applications")
     job = relationship("Job", back_populates="applications")
     source = relationship("Source", back_populates="applications")
-    interviews = relationship("Interview", back_populates="application")
     offers = relationship("Offer", back_populates="application")
 
     __table_args__ = (
@@ -114,7 +116,7 @@ class Interview(Base):
     __tablename__ = "interviews"
 
     id = Column(Integer, primary_key=True, index=True)
-    application_id = Column(Integer, ForeignKey("applications.id", ondelete="CASCADE"))
+    candidate_id = Column(Integer, ForeignKey("candidates.id", ondelete="CASCADE"))
     interviewer_id = Column(Integer, ForeignKey("interviewers.id"))
     interview_date = Column(DateTime, default=datetime.utcnow)
     feedback = Column(Text)
@@ -122,7 +124,7 @@ class Interview(Base):
     attitude_score = Column(Float)
     contribution_score = Column(Float)
 
-    application = relationship("Application", back_populates="interviews")
+    candidate = relationship("Candidate", back_populates="interviews")
     interviewer = relationship("Interviewer", back_populates="interviews")
 
 class Offer(Base):
@@ -254,3 +256,21 @@ class Answer(Base):
     question = relationship("Question", back_populates="answers")
     candidate = relationship("Candidate", back_populates="answers")
     candidate_assessment = relationship("CandidateAssessment", back_populates="answers") 
+
+
+class AttitudeAnalysis(Base):
+    __tablename__ = "attitude_analysis"
+
+    id = Column(Integer, primary_key=True, index=True)
+    candidate_id = Column(Integer, ForeignKey("candidates.id"))
+    job_id = Column(Integer, ForeignKey("jobs.id"))
+    culture_fit_score = Column(Float)
+    confidence_score = Column(Float)
+    positivity_score = Column(Float)
+    enthusiasm_score = Column(Float)
+    calmness_score = Column(Float)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    candidate = relationship("Candidate", back_populates="attitude_analysis")
+    job = relationship("Job", back_populates="attitude_analysis")

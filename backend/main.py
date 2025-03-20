@@ -29,7 +29,9 @@ from applications import create_application_feedback, register_company, CompanyR
 from schemas.schemas import ApplicationFeedbackPayload, JobResponse, ApplicationFeedbackRequest
 import io
 import sys
-from models.models import Candidate, CandidateStatus, Job
+from models.models import Candidate, CandidateStatus, Job, AttitudeAnalysis
+import uuid
+
 
 # Set environment variable to disable the new security behavior
 os.environ['TORCH_FORCE_WEIGHTS_ONLY'] = '0'
@@ -250,11 +252,11 @@ async def submit_candidate_application(
     )
 
 @app.post("/upload-video/{job_id}/{candidate_id}")
-async def upload_video(job_id: int, candidate_id: int, video: UploadFile = File(...), background_tasks: BackgroundTasks = BackgroundTasks()):
+async def upload_video(job_id: int, candidate_id: int, video: UploadFile = File(...), background_tasks: BackgroundTasks = BackgroundTasks(), db: Session = Depends(get_db)):
     video_path = save_file_locally(video, "video")
     audio_file_path = UPLOAD_DIR / f"audio_{uuid.uuid4()}_{video.filename.split('.')[0]}.aac"
     audio_path = extract_audio_from_video(video_path, audio_file_path)
-    background_tasks.add_task(process_video_and_audio, video_path, audio_path)
+    background_tasks.add_task(process_video_and_audio, db, job_id, candidate_id, video_path, audio_path)
     return {
         "success": True
     }
@@ -433,7 +435,21 @@ async def update_candidate_status(
         "status": status
     }
 
-
+@app.post("/api/attitude/analyze")
+async def analyze_attitude(db: Session = Depends(get_db)):
+    attitude_analysis = AttitudeAnalysis(
+        candidate_id=1,
+        job_id=1,
+        culture_fit_score=0.5,
+        confidence_score=0.5,
+        positivity_score=0.5,
+    )
+    db.add(attitude_analysis)
+    db.commit()
+    return {
+        "message": "Attitude analysis completed successfully",
+        "attitude_analysis": attitude_analysis
+    }
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True) 
