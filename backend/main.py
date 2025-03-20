@@ -22,6 +22,8 @@ from applications import create_application_feedback, register_company, CompanyR
 from database.database import get_db
 from sqlalchemy.orm import Session
 from schemas.schemas import ApplicationFeedbackPayload, JobResponse, ApplicationFeedbackRequest
+import io
+import sys
 
 # Set environment variable to disable the new security behavior
 os.environ['TORCH_FORCE_WEIGHTS_ONLY'] = '0'
@@ -100,6 +102,16 @@ class JobDescriptionRequest(BaseModel):
     job_responsibilities: str
     job_qualifications: str
     job_salary: str
+
+class CodeSubmission(BaseModel):
+    code: str
+    testCases: List[dict]
+    examId: int
+
+class ScoreSubmission(BaseModel):
+    examId: int
+    score: float
+    honestyScore: float
 
 app.websocket("/ws")(websocket_endpoint)
 app.get("/logs")(get_logs)
@@ -228,6 +240,51 @@ async def get_jobs_for_company(
         List[JobResponse]: List of jobs with company details
     """
     return await get_company_jobs(db=db, company_id=company_id)
+
+@app.post("/api/submit-code")
+async def submit_code(submission: CodeSubmission):
+    results = []
+    
+    for test_case in submission.testCases:
+        # Create a string buffer to capture output
+        output_buffer = io.StringIO()
+        sys.stdout = output_buffer
+        
+        try:
+            # Create a safe execution environment
+            local_vars = {}
+            exec(submission.code, {"__builtins__": {"print": print, "int": int}}, local_vars)
+            
+            # Get the last defined function
+            user_function = None
+            for var in local_vars.values():
+                if callable(var):
+                    user_function = var
+                    break
+            
+            if user_function:
+                result = str(user_function(int(test_case["input"])))
+                passed = result.strip() == test_case["expectedOutput"].strip()
+                results.append({"passed": passed, "output": result})
+            else:
+                results.append({"passed": False, "output": "No function defined"})
+                
+        except Exception as e:
+            results.append({"passed": False, "output": str(e)})
+        finally:
+            sys.stdout = sys.__stdout__
+    
+    return {"results": results}
+
+@app.post("/api/submit-score")
+async def submit_score(submission: ScoreSubmission):
+    # TODO: Store the score in your database
+    return {
+        "message": "Score submitted successfully",
+        "examId": submission.examId,
+        "score": submission.score,
+        "honestyScore": submission.honestyScore
+    }
 
 @app.get("/api/jobs/{job_id}", response_model=JobResponse)
 async def get_job(
