@@ -48,6 +48,8 @@ class Job(Base):
 
     company = relationship("Company", back_populates="jobs")
     candidates = relationship("Candidate", back_populates="job")
+    applications = relationship("Application", back_populates="job")
+    assessments = relationship("Assessment", back_populates="job")
 
 class Candidate(Base):
     __tablename__ = "candidates"
@@ -62,6 +64,10 @@ class Candidate(Base):
     job_id = Column(Integer, ForeignKey("jobs.id"))
     company_id = Column(Integer, ForeignKey("companies.id"))
     resume_s3_url = Column(String(512))
+    assessment_score = Column(Float, nullable=True)
+    resume_score = Column(Float, nullable=True)
+    resume_summary = Column(Text, nullable=True)
+    test_summary = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -76,6 +82,7 @@ class Application(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     candidate_id = Column(Integer, ForeignKey("candidates.id", ondelete="CASCADE"))
+    job_id = Column(Integer, ForeignKey("jobs.id", ondelete="CASCADE"))
     job_role = Column(String(255), nullable=False, default="Engineering")
     applied_date = Column(DateTime, default=datetime.utcnow)
     status = Column(Enum(ApplicationStatus), nullable=False)
@@ -83,12 +90,13 @@ class Application(Base):
     source_id = Column(Integer, ForeignKey("sources.id"))
 
     candidate = relationship("Candidate", back_populates="applications")
+    job = relationship("Job", back_populates="applications")
     source = relationship("Source", back_populates="applications")
     interviews = relationship("Interview", back_populates="application")
     offers = relationship("Offer", back_populates="application")
 
     __table_args__ = (
-        UniqueConstraint('candidate_id', 'job_role', name='unique_application'),
+        UniqueConstraint('candidate_id', 'job_id', name='unique_application'),
     )
 
 class Interview(Base):
@@ -155,4 +163,18 @@ class ExitPrediction(Base):
     churn_risk = Column(Float)
     warning_signs = Column(Text)
 
-    candidate = relationship("Candidate", back_populates="exit_predictions") 
+    candidate = relationship("Candidate", back_populates="exit_predictions")
+
+class Assessment(Base):
+    __tablename__ = "assessments"
+
+    id = Column(Integer, primary_key=True, index=True)
+    job_id = Column(Integer, ForeignKey("jobs.id", ondelete="CASCADE"))
+    difficulty = Column(Integer, nullable=False)
+    properties = Column(JSON, nullable=True)
+    type = Column(String(255), nullable=False)
+    title = Column(String(255), nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    job = relationship("Job", back_populates="assessments") 
