@@ -13,5 +13,12 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
+  localstack:
+    image: localstack/localstack:latest
+    container_name: exam_localstack
+    ports:
+      - "4566:4566"
+      - "3003:3003"
+
 volumes:
   postgres_data: 

@@ -11,7 +11,7 @@ def generate_job_requirements(  job_title: str,job_description: str,job_requirem
     Job Salary: {job_salary}
     """
     response = ollama.chat(
-        model="llama3",
+        model="tinyllama",
         messages=[{"role": "user", "content": prompt}]
     )
     return response["message"]["content"]

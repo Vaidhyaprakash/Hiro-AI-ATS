@@ -7,7 +7,7 @@ from typing import List, Dict
 import re  
 
 # Load Ollama model
-MODEL_NAME = "llama3"
+MODEL_NAME = "tinyllama"
 
 def extract_text_from_pdf(pdf_path: str) -> str:
     with pdfplumber.open(pdf_path) as pdf:

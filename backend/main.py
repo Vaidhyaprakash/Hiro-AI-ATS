@@ -6,14 +6,10 @@ import uvicorn
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime
-import cv2
 import numpy as np
-from ultralytics import YOLO
-import base64
-import asyncio
 import mediapipe as mp
-import torch
 import os
+import uuid
 from ultralytics.nn.tasks import DetectionModel
 from resumefilter import process_resumes
 from jobdescgen import generate_job_requirements 
@@ -22,6 +18,7 @@ from applications import create_application_feedback, register_company, CompanyR
 from database.database import get_db
 from sqlalchemy.orm import Session
 from schemas.schemas import ApplicationFeedbackPayload
+from attitudedetector import extract_audio_from_video, upload_to_s3, process_video_and_audio    
 
 # Set environment variable to disable the new security behavior
 os.environ['TORCH_FORCE_WEIGHTS_ONLY'] = '0'
@@ -202,6 +199,34 @@ async def submit_candidate_application(
         db=db,
         payload=request
     )
+
+@app.post("/upload-video/")
+async def upload_video(file: UploadFile, background_tasks: BackgroundTasks):
+    """Receives a video, extracts audio, uploads both to S3, and processes them in background."""
+    video_filename = f"{uuid.uuid4()}.mp4"
+    audio_filename = video_filename.replace(".mp4", ".wav")
+    
+    # Save the uploaded video
+    video_path = f"./{video_filename}"
+    with open(video_path, "wb") as buffer:
+        buffer.write(await file.read())
+    
+    # Extract audio
+    audio_path = f"./{audio_filename}"
+    extracted_audio = extract_audio_from_video(video_path, audio_path)
+
+    if not extracted_audio:
+        return {"error": "Audio extraction failed"}
+
+    # Upload both files to S3
+    await upload_to_s3(video_path, video_filename)
+    await upload_to_s3(audio_path, audio_filename)
+
+    # Process both video & audio in the background
+    background_tasks.add_task(process_video_and_audio, video_filename, audio_filename)
+
+    return {"message": "Video & Audio uploaded & processing started", "video_key": video_filename, "audio_key": audio_filename}
+
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True) 
