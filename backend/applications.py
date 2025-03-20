@@ -110,8 +110,8 @@ async def create_application_feedback(
 
         # Create job in database
         job = Job(
-            title=job_data.title,
-            job_description=job_data.job_description or f"Position for {job_data.title} at {company.name}",
+            title=job_data.job_title,
+            job_description=job_data.job_description or f"Position for {job_data.job_title} at {company.name}",
             requirements=job_data.requirements,
             company_id=job_data.company_id,
             properties=job_data.properties
@@ -262,14 +262,14 @@ async def get_company_jobs(
     company_id: int
 ) -> List[JobResponse]:
     """
-    Get all jobs for a specific company.
+    Get all jobs for a specific company with candidate counts.
     
     Args:
         db: Database session
         company_id: ID of the company
     
     Returns:
-        List[JobResponse]: List of jobs with company details
+        List[JobResponse]: List of jobs with company details and candidate counts
     """
     try:
         # Get company from database
@@ -280,8 +280,18 @@ async def get_company_jobs(
                 detail=f"Company with ID {company_id} not found"
             )
 
-        # Get all jobs for the company
-        jobs = db.query(Job).filter(Job.company_id == company_id).all()
+        # Get all jobs for the company with candidate counts
+        jobs = db.query(
+            Job,
+            func.count(Candidate.id).label('candidate_count')
+        ).outerjoin(
+            Candidate,
+            Job.id == Candidate.job_id
+        ).filter(
+            Job.company_id == company_id
+        ).group_by(
+            Job.id
+        ).all()
         
         # Convert to response model
         return [
@@ -294,9 +304,10 @@ async def get_company_jobs(
                 company_id=job.company_id,
                 created_at=job.created_at,
                 updated_at=job.updated_at,
-                company_name=company.name
+                company_name=company.name,
+                candidate_count=candidate_count
             )
-            for job in jobs
+            for job, candidate_count in jobs
         ]
 
     except HTTPException as he:
@@ -305,5 +316,70 @@ async def get_company_jobs(
         raise HTTPException(
             status_code=500,
             detail=f"Failed to get company jobs: {str(e)}"
+        ) 
+
+async def get_job_by_id(
+    db: Session,
+    job_id: int
+) -> JobResponse:
+    """
+    Get a specific job by ID with candidate count.
+    
+    Args:
+        db: Database session
+        job_id: ID of the job
+    
+    Returns:
+        JobResponse: Job details with company details and candidate count
+    """
+    try:
+        # Get job with candidate count
+        job_result = db.query(
+            Job,
+            func.count(Candidate.id).label('candidate_count')
+        ).outerjoin(
+            Candidate,
+            Job.id == Candidate.job_id
+        ).filter(
+            Job.id == job_id
+        ).group_by(
+            Job.id
+        ).first()
+
+        if not job_result:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Job with ID {job_id} not found"
+            )
+
+        job, candidate_count = job_result
+
+        # Get company details
+        company = db.query(Company).filter(Company.id == job.company_id).first()
+        if not company:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Company for job ID {job_id} not found"
+            )
+
+        return JobResponse(
+            id=job.id,
+            title=job.title,
+            job_description=job.job_description,
+            requirements=job.requirements,
+            properties=job.properties,
+            company_id=job.company_id,
+            created_at=job.created_at,
+            updated_at=job.updated_at,
+            company_name=company.name,
+            candidate_count=candidate_count
+        )
+
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to get job: {str(e)}"
         ) 
         

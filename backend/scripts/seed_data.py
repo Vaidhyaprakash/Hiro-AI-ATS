@@ -8,7 +8,7 @@ from database.database import SessionLocal, engine
 from models.models import (
     Company, Job, Candidate, Application, Interview, Offer,
     PerformanceReview, Interviewer, Source, ExitPrediction,
-    ApplicationStatus, SourceType, Assessment
+    ApplicationStatus, SourceType, Assessment, CandidateStatus
 )
 
 def seed_data():
@@ -43,7 +43,7 @@ def seed_data():
                 job_description=f"We are looking for an experienced {roles[i]}",
                 requirements="Bachelor's degree in Computer Science or related field",
                 company_id=companies[i].id,
-                properties={"1": "sourced", "2": "screening", "3": "interview_1", "4": "interview_1", "5": "hired"}
+                properties={"flow": {"1": "sourced", "2": "screening", "3": "interview_1", "4": "interview_2", "5": "hired"}}
             )
             db.add(job)
             jobs.append(job)
@@ -112,7 +112,8 @@ def seed_data():
                 assessment_score=random.uniform(60.0, 100.0),
                 resume_score=random.uniform(70.0, 100.0),
                 resume_summary=f"Experienced {roles[i]} with strong technical skills and proven track record in software development.",
-                test_summary=f"Completed technical assessment with {random.randint(70, 100)}% accuracy. Strong problem-solving skills demonstrated."
+                test_summary=f"Completed technical assessment with {random.randint(70, 100)}% accuracy. Strong problem-solving skills demonstrated.",
+                status=random.choice(list(CandidateStatus))
             )
             db.add(candidate)
             candidates.append(candidate)
