@@ -47,6 +47,7 @@ class JobResponse(JobBase):
     created_at: datetime
     updated_at: datetime
     company_name: str
+    candidate_count: int = 0
 
     class Config:
         from_attributes = True

@@ -262,14 +262,14 @@ async def get_company_jobs(
     company_id: int
 ) -> List[JobResponse]:
     """
-    Get all jobs for a specific company.
+    Get all jobs for a specific company with candidate counts.
     
     Args:
         db: Database session
         company_id: ID of the company
     
     Returns:
-        List[JobResponse]: List of jobs with company details
+        List[JobResponse]: List of jobs with company details and candidate counts
     """
     try:
         # Get company from database
@@ -280,8 +280,18 @@ async def get_company_jobs(
                 detail=f"Company with ID {company_id} not found"
             )
 
-        # Get all jobs for the company
-        jobs = db.query(Job).filter(Job.company_id == company_id).all()
+        # Get all jobs for the company with candidate counts
+        jobs = db.query(
+            Job,
+            func.count(Candidate.id).label('candidate_count')
+        ).outerjoin(
+            Candidate,
+            Job.id == Candidate.job_id
+        ).filter(
+            Job.company_id == company_id
+        ).group_by(
+            Job.id
+        ).all()
         
         # Convert to response model
         return [
@@ -294,9 +304,10 @@ async def get_company_jobs(
                 company_id=job.company_id,
                 created_at=job.created_at,
                 updated_at=job.updated_at,
-                company_name=company.name
+                company_name=company.name,
+                candidate_count=candidate_count
             )
-            for job in jobs
+            for job, candidate_count in jobs
         ]
 
     except HTTPException as he:
