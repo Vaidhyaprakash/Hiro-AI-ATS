@@ -14,7 +14,7 @@ import {
   Chip,
 } from "@sparrowengg/twigs-react";
 import { ArrowRight, PlusCircleIcon, X } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 
 // Define the Step interface
 interface Step {
@@ -30,7 +30,15 @@ interface Step {
   type?: string;
 }
 
-export function AssessmentComponent() {
+interface AssessmentComponentProps {
+  onAssessmentsChange: (assessments: any[]) => void;
+}
+
+interface AssessmentComponentProps {
+  onAssessmentsChange: (assessments: any[]) => void;
+}
+
+export function AssessmentComponent({ onAssessmentsChange }: AssessmentComponentProps) {
   // State for steps and modal
   const [steps, setSteps] = useState<Step[]>([]); // Specify the type for steps
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false); // Specify the type for modal state
@@ -71,15 +79,10 @@ export function AssessmentComponent() {
     },
   ];
 
-  // Fetch steps from backend
+  // Fetch steps from backend - Modified to run only once
   useEffect(() => {
     const fetchSteps = async () => {
       try {
-        // TODO: Replace with actual API endpoint
-        // const response = await fetch('/api/assessment-steps')
-        // const data = await response.json()
-        // setSteps(data)
-
         // For now, use fallback data
         setSteps(initialSteps);
       } catch (error) {
@@ -89,7 +92,31 @@ export function AssessmentComponent() {
     };
 
     fetchSteps();
+  }, []); // Empty dependency array to run only once
+
+  // Memoize the formatting function
+  const formatAssessments = useCallback((stepsToFormat: Step[]) => {
+    return stepsToFormat.map(step => ({
+      difficulty: step.difficulty || 1,
+      type: step.assessmentType || 'initial_screening',
+      title: step.title,
+      properties: {
+        skills: step.skills || [],
+        mcq: step.mcq,
+        openEnded: step.openEnded,
+        code: step.code,
+        duration: 30
+      }
+    }));
   }, []);
+
+  useEffect(() => {
+    // Only notify parent if steps is not empty
+    if (steps.length > 0) {
+      const formattedAssessments = formatAssessments(steps);
+      onAssessmentsChange(formattedAssessments);
+    }
+  }, [steps]); // Only depend on steps changes
 
   // Modify handleAddStep to handle both add and edit
   const handleAddStep = async () => {
@@ -193,7 +220,6 @@ export function AssessmentComponent() {
       gap="$6"
     >
       {steps.map((step, index) => {
-        console.log(steps);
         return (
           <Flex
             key={step.id}

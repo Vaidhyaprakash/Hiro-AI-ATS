@@ -149,6 +149,10 @@ class AssessmentRequest(BaseModel):
 
 class ApplicationFeedbackRequest(JobBase):
     company_id: int
+    title: str
+    job_description: Optional[str] = None
+    requirements: Optional[str] = None
+    properties: Optional[dict] = None
     assessments: List[AssessmentRequest]
 
 # Candidate Assessment schemas

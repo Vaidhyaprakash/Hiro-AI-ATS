@@ -19,14 +19,17 @@ const config = {
       },
     },
     extend: {
+      fontFamily: {
+        sans: ["'DM Sans'", "Helvetica", "Arial", "sans-serif"],
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
-        ring: "hsl(var(--ring))",
+        ring: "#00584480",
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
         primary: {
-          DEFAULT: "hsl(var(--primary))",
+          DEFAULT: "#005844",
           foreground: "hsl(var(--primary-foreground))",
         },
         secondary: {

@@ -93,4 +93,27 @@
     @apply bg-background text-foreground;
   }
 }
-
+.twigs-select__control--is-focused {
+  box-shadow: rgb(255, 255, 255) 0px 0px 0px 2px, #00584480 0px 0px 0px 4px, rgba(0, 0, 0, 0.05) 0px 1px 2px 0px !important;
+}
+.job-stepper-container{
+  .twigs-c-PJLV{
+    background-color: transparent !important;
+    border: none !important;
+    color: #005844 !important;
+  }
+  .twigs-c-bzgteB-gMLFDm-active-true{
+    color: #005844 !important;
+    border: none !important;
+    p{
+      border-color: #005844 !important;
+    }
+  }
+  .twigs-c-bzgteB-gMQNQe-completed-true{
+    color: #005844 !important;
+    p{
+      border-color: #005844 !important;
+      background-color: #005844 !important;
+    }
+  }
+}

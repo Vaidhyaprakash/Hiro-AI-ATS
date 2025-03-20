@@ -1,4 +1,4 @@
-from fastapi import FastAPI, UploadFile, File, HTTPException, BackgroundTasks, WebSocket, Depends
+from fastapi import FastAPI, UploadFile, File, HTTPException, BackgroundTasks, WebSocket, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, EmailStr
 from typing import List, Optional
@@ -21,6 +21,10 @@ from ultralytics.nn.tasks import DetectionModel
 from resumefilter import process_resumes
 from jobdescgen import generate_job_requirements 
 from exam import websocket_endpoint, get_logs
+from database.database import get_db
+from sqlalchemy.orm import Session
+from attitudedetector import extract_audio_from_video, process_video_and_audio, save_file_locally
+from pathlib import Path
 from applications import create_application_feedback, register_company, CompanyResponse, get_application_feedback, get_company_jobs, get_job_by_id
 from schemas.schemas import ApplicationFeedbackPayload, JobResponse, ApplicationFeedbackRequest
 import io
@@ -33,6 +37,8 @@ from paperCorrection import correct_answer, paper_correction
 os.environ['TORCH_FORCE_WEIGHTS_ONLY'] = '0'
 
 app = FastAPI(title="HR AI Tool API")
+UPLOAD_DIR = Path("uploads")
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 # # Load YOLOv8 model with weights_only=False
 # model = YOLO("yolov8n.pt", task="detect")
@@ -179,13 +185,14 @@ async def submit_application_feedback(
         job_data=request
     )
 
-@app.post("/api/resume/analyze")
-async def analyze_resume(background_tasks: BackgroundTasks):
+@app.post("/api/resume/analyze/{job_id}")
+async def analyze_resume(job_id: int, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     try:
-        background_tasks.add_task(process_resumes)
+        # Call process_resumes directly since it's now an async function
+        background_tasks.add_task(process_resumes, job_id, db)
         return {
-            "message": "Resume analysis started",
-            "status": "processing"
+            "message": "Resume analysis completed",
+            "status": "success"
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -246,17 +253,7 @@ async def correct_paper(request: PaperCorrectionRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     
-@app.post("/api/video/analyze")
-async def analyze_video(file: UploadFile = File(...)):
-    try:
-        # TODO: Implement video analysis logic
-        return {
-            "message": "Video analysis started",
-            "filename": file.filename,
-            "status": "processing"
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+
 
 @app.post("/api/companies/register", response_model=CompanyResponse)
 async def register_new_company(
@@ -295,6 +292,17 @@ async def submit_candidate_application(
         db=db,
         payload=request
     )
+
+@app.post("/upload-video/{job_id}/{candidate_id}")
+async def upload_video(job_id: int, candidate_id: int, video: UploadFile = File(...), background_tasks: BackgroundTasks = BackgroundTasks()):
+    video_path = save_file_locally(video, "video")
+    audio_file_path = UPLOAD_DIR / f"audio_{uuid.uuid4()}_{video.filename.split('.')[0]}.aac"
+    audio_path = extract_audio_from_video(video_path, audio_file_path)
+    background_tasks.add_task(process_video_and_audio, video_path, audio_path)
+    return {
+        "success": True
+    }
+
 
 @app.get("/api/companies/{company_id}/jobs", response_model=List[JobResponse])
 async def get_jobs_for_company(
@@ -439,6 +447,37 @@ async def get_job_candidates(
         }
         for c in candidates
     ]
+
+@app.get("/api/candidates/{job_id}")
+async def get_candidates_by_job_id(
+    job_id: int,
+    status: CandidateStatus,
+    db: Session = Depends(get_db)
+):
+    """
+    Get all candidates for a specific job.
+    """
+    candidates = db.query(Candidate).filter(Candidate.job_id == job_id, Candidate.status == status).all()
+    return candidates
+
+@app.post("/api/candidates/{candidate_id}/update-status")
+async def update_candidate_status(
+    candidate_id: int,
+    status: CandidateStatus,
+    db: Session = Depends(get_db)
+):
+    """
+    Update the status of a candidate.
+    """
+    candidate = db.query(Candidate).filter(Candidate.id == candidate_id).first()
+    candidate.status = status
+    db.commit()
+    return {
+        "message": "Candidate status updated successfully",
+        "status": status
+    }
+
+
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True) 
