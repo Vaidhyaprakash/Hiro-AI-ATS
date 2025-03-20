@@ -1,29 +1,51 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useSelector } from "react-redux"
-import { format } from "date-fns"
 import { Star } from "lucide-react"
-import { Checkbox } from "@/components/ui/checkbox"
+// import { Checkbox } from "@/components/ui/checkbox"
 import type { RootState } from "@/lib/redux/store"
-import { formatDistanceToNow } from "@/lib/utils"
+import { Checkbox } from "../ui/checkbox"
+// import { formatDistanceToNow } from "@/lib/utils"
 
 interface CandidatesListProps {
   jobs: object[],
-  candidates: object[]
+  candidates: {
+    id: number;
+    name: string;
+    email: string;
+    phone: string;
+    location: string;
+    college: string;
+    skills: string;
+    resume_s3_url: string;
+    assessment_score: number;
+    resume_score: number;
+    resume_summary: string;
+    test_summary: string;
+    status: string | null;
+    created_at: string;
+    updated_at: string;
+  }[]
 }
 
 export function CandidatesList({ jobs, candidates }: CandidatesListProps) {
   const [selectAll, setSelectAll] = useState(false)
   const [selectedCandidates, setSelectedCandidates] = useState<string[]>([])
-  // const job = useSelector((state: RootState) => state.jobs.jobs.find((j) => j.id === jobId))
-  console.log(candidates)
+  const [isClient, setIsClient] = useState(false)
+  const job = useSelector((state: RootState) => state.jobs.jobs.find((j) => j.id === jobId))
+  // const candidates = job?.candidates || []
+  
+  // Only run date formatting on the client
+  useEffect(() => {
+    setIsClient(true)
+  }, [])
 
   const handleSelectAll = () => {
     if (selectAll) {
       setSelectedCandidates([])
     } else {
-      setSelectedCandidates(candidates.map((c) => c.id))
+      setSelectedCandidates(candidates.map((c) => c.id.toString()))
     }
     setSelectAll(!selectAll)
   }
@@ -49,14 +71,45 @@ export function CandidatesList({ jobs, candidates }: CandidatesListProps) {
     )
   }
 
-  if (candidates.length === 0) {
+  const formatDate = (dateString: string) => {
+    if (!isClient || !dateString) return "-"
+    try {
+      const date = new Date(dateString)
+      return date.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+      })
+    } catch {
+      return "-"
+    }
+  }
+
+  const getTimeAgo = (dateString: string) => {
+    if (!isClient || !dateString) return ""
+    try {
+      const date = new Date(dateString)
+      const now = new Date()
+      const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000)
+      
+      if (diffInSeconds < 60) return 'just now'
+      if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`
+      if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`
+      return `${Math.floor(diffInSeconds / 86400)}d ago`
+    } catch {
+      return ""
+    }
+  }
+
+  if (candidates?.length === 0) {
     return (
       <div className="text-center py-8">
         <p className="text-muted-foreground">No candidates yet. Add candidates to get started.</p>
       </div>
     )
   }
-
+  console.log(candidates)
+  console.log("frontend/components/candidates-list.tsx")
   return (
     <div className="overflow-x-auto">
       <table className="w-full">
@@ -67,7 +120,7 @@ export function CandidatesList({ jobs, candidates }: CandidatesListProps) {
             </th>
             <th className="pb-2 font-normal text-gray-500">Candidate Info</th>
             <th className="pb-2 font-normal text-gray-500">Status</th>
-            <th className="pb-2 font-normal text-gray-500">Rating</th>
+            <th className="pb-2 font-normal text-gray-500">Contact</th>
             <th className="pb-2 font-normal text-gray-500">Applied</th>
             <th className="pb-2 font-normal text-gray-500">Last Email</th>
           </tr>
@@ -77,8 +130,8 @@ export function CandidatesList({ jobs, candidates }: CandidatesListProps) {
             <tr key={candidate.id} className="border-b hover:bg-gray-50">
               <td className="py-4">
                 <Checkbox
-                  checked={selectedCandidates.includes(candidate.id)}
-                  onCheckedChange={() => handleSelectCandidate(candidate.id)}
+                  checked={selectedCandidates.includes(candidate.id.toString())}
+                  onCheckedChange={() => handleSelectCandidate(candidate.id.toString())}
                   className="rounded-sm"
                 />
               </td>
@@ -91,17 +144,15 @@ export function CandidatesList({ jobs, candidates }: CandidatesListProps) {
               </td>
               <td className="py-4">
                 <div>
-                  <div>{candidate.status}</div>
+                  <div>{candidate.status || 'New'}</div>
                   <div className="text-sm text-gray-600">
-                    Updated {formatDistanceToNow(new Date(candidate.updatedAt))} ago
+                    {isClient ? getTimeAgo(candidate.updated_at) : ""}
                   </div>
                 </div>
               </td>
-              <td className="py-4">{renderRating(candidate.rating)}</td>
-              <td className="py-4">{format(new Date(candidate.appliedAt), "MMM d, yyyy")}</td>
-              <td className="py-4">
-                {candidate.lastEmail ? format(new Date(candidate.lastEmail), "MMM d, yyyy") : "-"}
-              </td>
+              <td className="py-4">{candidate.email}</td>
+              <td className="py-4" suppressHydrationWarning>{formatDate(candidate.created_at)}</td>
+              <td className="py-4" suppressHydrationWarning>{formatDate(candidate.updated_at)}</td>
             </tr>
           ))}
         </tbody>

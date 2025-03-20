@@ -6,6 +6,7 @@ from models.models import Assessment
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
 from models.models import Question
+from datetime import datetime
 
 def create_survey(survey_name: str):
     url = "https://api.salesparrow.com/v3/surveys"
@@ -116,11 +117,11 @@ def generateQuestionsAndStore(num_mcq: int, num_openended: int, num_coding: int,
     }
     
     with Session() as db:
-        db.query(Assessment).filter(Assessment.id == assessment_id).update(
-            {"properties": assessment_properties},
+        db.query(Assessment).filter(Assessment.id == assessment_id).update({
+            "properties": assessment_properties,
             "assessment_link": channel.data.url,
-            "updated_at": datetime.utcnow() 
-        )
+            "updated_at": datetime.utcnow()
+        })
         db.commit()
 
     for question_type in questions.questions:
