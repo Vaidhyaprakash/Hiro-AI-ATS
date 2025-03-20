@@ -1,4 +1,4 @@
-from fastapi import FastAPI, UploadFile, File, HTTPException, BackgroundTasks, WebSocket, Depends
+from fastapi import FastAPI, UploadFile, File, HTTPException, BackgroundTasks, WebSocket, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, EmailStr
 from typing import List, Optional
@@ -17,13 +17,16 @@ from exam import websocket_endpoint, get_logs
 from applications import create_application_feedback, register_company, CompanyResponse, get_application_feedback, get_company_jobs
 from database.database import get_db
 from sqlalchemy.orm import Session
-from attitudedetector import extract_audio_from_video, upload_to_s3, process_video_and_audio    
+from attitudedetector import extract_audio_from_video, process_video_and_audio, save_file_locally
 from schemas.schemas import ApplicationFeedbackPayload, JobResponse, ApplicationFeedbackRequest
+from pathlib import Path
 
 # Set environment variable to disable the new security behavior
 os.environ['TORCH_FORCE_WEIGHTS_ONLY'] = '0'
 
 app = FastAPI(title="HR AI Tool API")
+UPLOAD_DIR = Path("uploads")
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 # # Load YOLOv8 model with weights_only=False
 # model = YOLO("yolov8n.pt", task="detect")
@@ -160,17 +163,7 @@ async def generate_job_description(request: JobDescriptionRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
     
-@app.post("/api/video/analyze")
-async def analyze_video(file: UploadFile = File(...)):
-    try:
-        # TODO: Implement video analysis logic
-        return {
-            "message": "Video analysis started",
-            "filename": file.filename,
-            "status": "processing"
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+
 
 @app.post("/api/companies/register", response_model=CompanyResponse)
 async def register_new_company(
@@ -210,32 +203,15 @@ async def submit_candidate_application(
         payload=request
     )
 
-@app.post("/upload-video/")
-async def upload_video(file: UploadFile, background_tasks: BackgroundTasks):
-    """Receives a video, extracts audio, uploads both to S3, and processes them in background."""
-    video_filename = f"{uuid.uuid4()}.mp4"
-    audio_filename = video_filename.replace(".mp4", ".wav")
-    
-    # Save the uploaded video
-    video_path = f"./{video_filename}"
-    with open(video_path, "wb") as buffer:
-        buffer.write(await file.read())
-    
-    # Extract audio
-    audio_path = f"./{audio_filename}"
-    extracted_audio = extract_audio_from_video(video_path, audio_path)
-
-    if not extracted_audio:
-        return {"error": "Audio extraction failed"}
-
-    # Upload both files to S3
-    await upload_to_s3(video_path, video_filename)
-    await upload_to_s3(audio_path, audio_filename)
-
-    # Process both video & audio in the background
-    background_tasks.add_task(process_video_and_audio, video_filename, audio_filename)
-
-    return {"message": "Video & Audio uploaded & processing started", "video_key": video_filename, "audio_key": audio_filename}
+@app.post("/upload-video/{job_id}/{candidate_id}")
+async def upload_video(job_id: int, candidate_id: int, video: UploadFile = File(...), background_tasks: BackgroundTasks = BackgroundTasks()):
+    video_path = save_file_locally(video, "video")
+    audio_file_path = UPLOAD_DIR / f"audio_{uuid.uuid4()}_{video.filename.split('.')[0]}.aac"
+    audio_path = extract_audio_from_video(video_path, audio_file_path)
+    background_tasks.add_task(process_video_and_audio, video_path, audio_path)
+    return {
+        "success": True
+    }
 
 
 @app.get("/api/companies/{company_id}/jobs", response_model=List[JobResponse])

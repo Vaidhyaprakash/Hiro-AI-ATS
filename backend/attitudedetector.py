@@ -11,6 +11,13 @@ import os
 import boto3
 import aioboto3
 from moviepy.editor import VideoFileClip
+import shutil
+from fastapi import UploadFile
+from pathlib import Path
+import uuid
+
+UPLOAD_DIR = Path("uploads")
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 # Check for CUDA (GPU acceleration)
 device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -80,7 +87,7 @@ def analyze_video(video_path):
 def analyze_audio(audio_path):
     """Extracts tone & sentiment from voice."""
     # Convert speech to text
-    result = whisper_model.transcribe(audio_path)
+    result = whisper_model.transcribe(str(audio_path))
     transcript = result["text"]
 
     # Get sentiment analysis
@@ -89,7 +96,7 @@ def analyze_audio(audio_path):
     sentiment_score = sentiment_result[0]["score"]
 
     # Extract audio pitch (proxy for enthusiasm)
-    y, sr = librosa.load(audio_path, sr=None)
+    y, sr = librosa.load(str(audio_path), sr=None)
     pitches, magnitudes = librosa.piptrack(y=y, sr=sr)
 
     # Find peak pitch values
@@ -123,14 +130,6 @@ def extract_audio(video_path, audio_path):
         print(f"Error extracting audio: {e}")
         return None
 
-# Function to upload file to S3
-async def upload_to_s3(file_path, key):
-    """Uploads file to S3 (LocalStack)."""
-    async with aioboto3.client("s3", endpoint_url=S3_ENDPOINT_URL, aws_access_key_id=AWS_ACCESS_KEY, aws_secret_access_key=AWS_SECRET_KEY) as s3:
-        with open(file_path, "rb") as file:
-            await s3.upload_fileobj(file, S3_BUCKET_NAME, key)
-    print(f"✅ Uploaded {key} to S3")
-
 def compare_with_culture(attitude_params):
     """Compares candidate's attitude with the company's culture code."""
     match_scores = {}
@@ -144,23 +143,22 @@ def compare_with_culture(attitude_params):
     return match_scores, overall_match
 
 
-async def process_video_and_audio(video_key, audio_key):
     """Fetch video & audio from S3, analyze both, and compare with organization culture code."""
 
-    async with aioboto3.client("s3", endpoint_url=S3_ENDPOINT_URL, aws_access_key_id=AWS_ACCESS_KEY, aws_secret_access_key=AWS_SECRET_KEY) as s3:
-        # Fetch Video
-        video_response = await s3.get_object(Bucket=S3_BUCKET_NAME, Key=video_key)
-        video_data = await video_response["Body"].read()
-        video_path = f"/tmp/{video_key}"
-        with open(video_path, "wb") as f:
-            f.write(video_data)
+    s3 = boto3.client("s3", endpoint_url=S3_ENDPOINT_URL, aws_access_key_id=AWS_ACCESS_KEY, aws_secret_access_key=AWS_SECRET_KEY)
+    # Fetch Video
+    video_response = s3.get_object(Bucket=S3_BUCKET_NAME, Key=video_key)
+    video_data = video_response["Body"].read()
+    video_path = f"/tmp/{video_key}"
+    with open(video_path, "wb") as f:
+        f.write(video_data)
 
-        # Fetch Audio
-        audio_response = await s3.get_object(Bucket=S3_BUCKET_NAME, Key=audio_key)
-        audio_data = await audio_response["Body"].read()
-        audio_path = f"/tmp/{audio_key}"
-        with open(audio_path, "wb") as f:
-            f.write(audio_data)
+    # Fetch Audio
+    audio_response = s3.get_object(Bucket=S3_BUCKET_NAME, Key=audio_key)
+    audio_data = audio_response["Body"].read()
+    audio_path = f"/tmp/{audio_key}"
+    with open(audio_path, "wb") as f:
+        f.write(audio_data)
 
     # 🔍 Step 1: Analyze Video (Facial Expressions & Gestures)
     video_results = analyze_video(video_path)
@@ -173,51 +171,34 @@ async def process_video_and_audio(video_key, audio_key):
 
     print(f"✅ Final Analysis: {final_analysis}")
 
-def extract_audio(video_bytes: bytes, audio_s3_key: str):
+def extract_audio(video_bytes: bytes, audio_file_path: str):
     """Extract audio from in-memory video and upload to S3."""
-    try:
-        video_temp = "temp_video.mp4"
-        audio_temp = "temp_audio.aac"
+    video = VideoFileClip(video_bytes)
+    video.audio.write_audiofile(audio_file_path, codec="aac")
+    return audio_file_path
 
-        # Save video to a temporary file
-        with open(video_temp, "wb") as temp_file:
-            temp_file.write(video_bytes)
 
-        # Extract audio using MoviePy
-        video = VideoFileClip(video_temp)
-        video.audio.write_audiofile(audio_temp, codec="aac")
+def save_file_locally(uploaded_file: UploadFile, file_type: str):
+    file_path = UPLOAD_DIR / f"{file_type}_{uuid.uuid4()}_{uploaded_file.filename}"
+    print(f"🔍 Saving {file_type} file to: {file_path}")
+    with open(file_path, "wb") as buffer:
+        shutil.copyfileobj(uploaded_file.file, buffer)
+    return str(file_path)
 
-        # Upload extracted audio to S3
-        with open(audio_temp, "rb") as audio_file:
-            upload_to_s3(audio_file.read(), audio_s3_key)
+def process_video_and_audio(video_path, audio_path):
+    video_analysis = analyze_video(video_path)
+    audio_analysis = analyze_audio(audio_path)
 
-        # Cleanup
-        os.remove(video_temp)
-        os.remove(audio_temp)
+    # Combine extracted attitude parameters
+    attitude_parameters = {
+        "confidence": video_analysis.get("happy", 0) + video_analysis.get("neutral", 0),  # Happy/neutral → Confidence
+        "positivity": audio_analysis["positivity"],
+        "enthusiasm": audio_analysis["enthusiasm"],
+        "calmness": video_analysis.get("neutral", 0) - video_analysis.get("angry", 0)  # More neutral, less angry → Calmness
+    }
 
-        print(f"🎤 Extracted and uploaded audio: {audio_s3_key}")
+    # Compare with organization's culture code
+    match_scores, overall_match = compare_with_culture(attitude_parameters)
 
-    except Exception as e:
-        print(f"❌ Error extracting audio: {e}")
+    return attitude_parameters, match_scores, overall_match
 
-# Example Usage
-# video_path = "candidate_interview.mp4"
-# audio_path = extract_audio_from_video(video_path)
-
-# video_analysis = analyze_video(video_path)
-# audio_analysis = analyze_audio(audio_path)
-
-# # Combine extracted attitude parameters
-# attitude_parameters = {
-#     "confidence": video_analysis.get("happy", 0) + video_analysis.get("neutral", 0),  # Happy/neutral → Confidence
-#     "positivity": audio_analysis["positivity"],
-#     "enthusiasm": audio_analysis["enthusiasm"],
-#     "calmness": video_analysis.get("neutral", 0) - video_analysis.get("angry", 0)  # More neutral, less angry → Calmness
-# }
-
-# # Compare with organization's culture code
-# match_scores, overall_match = compare_with_culture(attitude_parameters)
-
-# print("\n📌 Candidate Attitude Parameters:", attitude_parameters)
-# print("📌 Match Scores:", match_scores)
-# print(f"✅ Overall Culture Match: {overall_match:.2f} (out of 1.0)")
