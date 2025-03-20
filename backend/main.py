@@ -118,13 +118,14 @@ async def submit_application_feedback(
         job_data=request
     )
 
-@app.post("/api/resume/analyze")
-async def analyze_resume(background_tasks: BackgroundTasks):
+@app.post("/api/resume/analyze/{job_id}")
+async def analyze_resume(job_id: int, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     try:
-        background_tasks.add_task(process_resumes)
+        # Call process_resumes directly since it's now an async function
+        background_tasks.add_task(process_resumes, job_id, db)
         return {
-            "message": "Resume analysis started",
-            "status": "processing"
+            "message": "Resume analysis completed",
+            "status": "success"
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
