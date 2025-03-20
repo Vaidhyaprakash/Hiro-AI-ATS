@@ -6,8 +6,14 @@ import base64
 import asyncio
 import mediapipe as mp
 from ultralytics import YOLO
+import torch
+from ultralytics.nn.tasks import DetectionModel
 
-# Load YOLOv8 model with weights_only=False
+# Override torch.load default behavior
+original_torch_load = torch.load
+torch.load = lambda *args, **kwargs: original_torch_load(*args, weights_only=False, **kwargs)
+
+# Load YOLOv8 model
 model = YOLO("yolov8n.pt", task="detect")
 
 # MediaPipe Face Mesh
