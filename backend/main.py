@@ -32,6 +32,10 @@ import sys
 from models.models import Candidate, CandidateStatus, Job
 from questionGenerator import generate_questions
 from paperCorrection import correct_answer, paper_correction
+from createSurvey import generateQuestionsAndStore
+import time
+from dotenv import load_dotenv
+from ngrok import update_ngrok_url
 
 # Set environment variable to disable the new security behavior
 os.environ['TORCH_FORCE_WEIGHTS_ONLY'] = '0'
@@ -146,6 +150,15 @@ class ScoreSubmission(BaseModel):
     score: float
     honestyScore: float
 
+class SurveyRequest(BaseModel):
+    num_mcq: int
+    num_openended: int
+    num_coding: int
+    difficulty: str
+    job_role: str
+    skills: List[str]
+    assessment_id: int
+    job_id: int
 class CandidateResponse(BaseModel):
     id: Optional[int] = None
     name: Optional[str] = None
@@ -340,6 +353,10 @@ async def get_jobs_for_company(
         List[JobResponse]: List of jobs with company details
     """
     return await get_company_jobs(db=db, company_id=company_id)
+
+@app.post("/api/create-survey")
+async def create1_survey(request: SurveyRequest, db: Session = Depends(get_db)):
+    return generateQuestionsAndStore(request.num_mcq, request.num_openended, request.num_coding, request.difficulty, request.job_role, request.skills, request.assessment_id, request.job_id, db)
 
 @app.post("/api/submit-code")
 async def submit_code(submission: CodeSubmission):
@@ -574,6 +591,14 @@ async def submit_answer(submission: AnswerSubmission, db: Session = Depends(get_
         print(f"Error in submit_answer: {str(e)}")
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.on_event("startup")
+async def startup_event():
+    # Wait for ngrok to start
+    time.sleep(5)
+    ngrok_url = update_ngrok_url()
+    if ngrok_url:
+        print(f"Server accessible at: {ngrok_url}")
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True) 
