@@ -18,7 +18,7 @@ from ultralytics.nn.tasks import DetectionModel
 from resumefilter import process_resumes
 from jobdescgen import generate_job_requirements 
 from exam import websocket_endpoint, get_logs
-from applications import create_application_feedback, register_company, CompanyResponse, get_application_feedback, get_company_jobs
+from applications import create_application_feedback, register_company, CompanyResponse, get_application_feedback, get_company_jobs, get_job_by_id
 from database.database import get_db
 from sqlalchemy.orm import Session
 from schemas.schemas import ApplicationFeedbackPayload, JobResponse, ApplicationFeedbackRequest
@@ -228,6 +228,23 @@ async def get_jobs_for_company(
         List[JobResponse]: List of jobs with company details
     """
     return await get_company_jobs(db=db, company_id=company_id)
+
+@app.get("/api/jobs/{job_id}", response_model=JobResponse)
+async def get_job(
+    job_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    Get a specific job by ID.
+    
+    Args:
+        job_id: ID of the job
+        db: Database session
+    
+    Returns:
+        JobResponse: Job details with company details and candidate count
+    """
+    return await get_job_by_id(db=db, job_id=job_id)
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True) 
