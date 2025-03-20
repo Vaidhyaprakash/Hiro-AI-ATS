@@ -32,6 +32,7 @@ import sys
 from models.models import Candidate, CandidateStatus, Job
 from questionGenerator import generate_questions
 from paperCorrection import correct_answer, paper_correction
+from leads import find_candidates
 
 # Set environment variable to disable the new security behavior
 os.environ['TORCH_FORCE_WEIGHTS_ONLY'] = '0'
@@ -180,6 +181,11 @@ class AnswerSubmission(BaseModel):
     assessmentId: int
     answer: str
     score: float
+
+class LeadGenerationRequest(BaseModel):
+    job_id: int
+    skills: List[str]
+    location: str
 
 @app.websocket("/ws/{candidate_id}")
 async def websocket_handler(websocket: WebSocket, candidate_id: int, db: Session = Depends(get_db)):
@@ -549,11 +555,16 @@ async def submit_answer(submission: AnswerSubmission, db: Session = Depends(get_
                 assessment_id=submission.assessmentId,
                 honesty_score=100,  # Default value
                 overall_score=0,    # Will be updated later
-                status="IN_PROGRESS"
+                status="COMPLETED"
             )
             db.add(candidate_assessment)
-            db.commit()
-            db.refresh(candidate_assessment)
+        else:
+            # Update existing assessment status to completed
+            candidate_assessment.status = "COMPLETED"
+            candidate_assessment.overall_score = submission.score
+            
+        db.commit()
+        db.refresh(candidate_assessment)
 
         # Create new answer
         answer = Answer(
@@ -574,6 +585,55 @@ async def submit_answer(submission: AnswerSubmission, db: Session = Depends(get_
         print(f"Error in submit_answer: {str(e)}")
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/assessment-status/{candidate_id}/{assessment_id}")
+async def get_assessment_status(
+    candidate_id: int,
+    assessment_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    Check if a candidate has completed an assessment
+    """
+    try:
+        candidate_assessment = db.query(CandidateAssessment).filter(
+            CandidateAssessment.candidate_id == candidate_id,
+            CandidateAssessment.assessment_id == assessment_id
+        ).first()
+
+        if not candidate_assessment:
+            return {
+                "status": "NOT_STARTED",
+                "score": 0,
+                "honesty_score": 0
+            }
+
+        return {
+            "status": candidate_assessment.status,
+            "score": candidate_assessment.overall_score,
+            "honesty_score": candidate_assessment.honesty_score
+        }
+    except Exception as e:
+        print(f"Error in get_assessment_status: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/leads/generate")
+async def generate_candidate_leads(
+    request: LeadGenerationRequest,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db)
+):
+    """
+    Generate candidate leads from Reddit based on job ID, required skills, and location.
+    The lead generation process runs in the background and is limited to evaluating 30 candidates.
+    """
+    return await find_candidates(
+        job_id=request.job_id,
+        skills=request.skills,
+        location=request.location,
+        db=db,
+        background_tasks=background_tasks
+    )
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True) 
