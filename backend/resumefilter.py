@@ -130,9 +130,10 @@ async def process_resumes(job_id: int, db: Session):
                 'college': newCandidate.college,
                 'skills': newCandidate.skills,
                 'job_id': newCandidate.job_id,
+                'status': "SCREENING",
                 'company_id': newCandidate.company_id,
                 'resume_s3_url': newCandidate.resume_s3_url,
-                'assessment_score': newCandidate.assessment_score,
+                'resume_score': newCandidate.assessment_score,
                 'resume_summary': newCandidate.resume_summary
             })
             db.commit()
