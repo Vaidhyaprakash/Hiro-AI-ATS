@@ -87,6 +87,9 @@ async def create_application_feedback(
     db: Session,
     company_id: int,
     job_title: str,
+    job_description: Optional[str] = None,
+    requirements: Optional[str] = None,
+    properties: Optional[dict] = None,
     feedback_url: str = "https://krish-test.salesparrow.com/s/Job-Application-Feedback-Survey/tt-TDNyY"
 ) -> dict:
     """
@@ -96,6 +99,9 @@ async def create_application_feedback(
         db: Database session
         company_id: ID of the company
         job_title: Title of the job
+        job_description: Description of the job (optional)
+        requirements: Job requirements (optional)
+        properties: Additional job properties as JSON (optional)
         feedback_url: URL to send feedback to (optional)
     
     Returns:
@@ -113,8 +119,10 @@ async def create_application_feedback(
         # Create job in database
         job = Job(
             title=job_title,
+            job_description=job_description or f"Position for {job_title} at {company.name}",
+            requirements=requirements,
             company_id=company_id,
-            description=f"Position for {job_title} at {company.name}"
+            properties=properties
         )
         db.add(job)
         db.commit()
@@ -132,12 +140,14 @@ async def create_application_feedback(
         encoded_params = urllib.parse.urlencode(params)
         feedback_url_with_params = f"{feedback_url}?{encoded_params}"
 
-        
-
         return {
             "company_id": company_id,
             "company_name": company.name,
             "job_id": job.id,
+            "job_title": job.title,
+            "job_description": job.job_description,
+            "requirements": job.requirements,
+            "properties": job.properties,
             "feedback_url": feedback_url_with_params
         }
 

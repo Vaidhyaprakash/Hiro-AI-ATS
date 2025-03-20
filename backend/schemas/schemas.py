@@ -24,9 +24,10 @@ class Company(CompanyBase):
 
 # Job schemas
 class JobBase(BaseModel):
-    role: str
-    job_description: str
+    title: str
+    job_description: Optional[str] = None
     requirements: Optional[str] = None
+    properties: Optional[dict] = None
 
 class JobCreate(JobBase):
     company_id: int

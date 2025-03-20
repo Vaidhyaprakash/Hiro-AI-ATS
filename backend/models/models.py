@@ -39,9 +39,12 @@ class Job(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     title = Column(String, index=True)
-    description = Column(Text)
+    job_description = Column(Text, nullable=True)
+    requirements = Column(Text, nullable=True)
     company_id = Column(Integer, ForeignKey("companies.id"))
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    properties = Column(JSON, nullable=True)
 
     company = relationship("Company", back_populates="jobs")
     candidates = relationship("Candidate", back_populates="job")

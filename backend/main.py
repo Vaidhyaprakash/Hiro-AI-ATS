@@ -65,6 +65,9 @@ class Question(BaseModel):
 class ApplicationFeedbackRequest(BaseModel):
     company_id: int
     job_title: str
+    job_description: Optional[str] = None
+    requirements: Optional[str] = None
+    properties: Optional[dict] = None
 
 class CompanyRegistrationRequest(BaseModel):
     name: str
@@ -109,7 +112,10 @@ async def submit_application_feedback(
     return await create_application_feedback(
         db=db,
         company_id=request.company_id,
-        job_title=request.job_title
+        job_title=request.job_title,
+        job_description=request.job_description,
+        requirements=request.requirements,
+        properties=request.properties
     )
 
 @app.post("/api/resume/analyze")
