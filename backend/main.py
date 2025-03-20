@@ -26,6 +26,8 @@ from schemas.schemas import ApplicationFeedbackPayload, JobResponse, Application
 import io
 import sys
 from models.models import Candidate, CandidateStatus, Job
+from questionGenerator import generate_questions
+from paperCorrection import correct_answer, paper_correction
 
 # Set environment variable to disable the new security behavior
 os.environ['TORCH_FORCE_WEIGHTS_ONLY'] = '0'
@@ -61,6 +63,22 @@ class QuestionGenerationRequest(BaseModel):
     num_questions: int
     difficulty: str
     additional_requirements: Optional[str] = None
+
+class QuestionSetGenerationRequest(BaseModel):
+    num_mcq: int
+    num_openended: int
+    num_coding: int
+    difficulty: str
+    job_role: str
+    skills: List[str]
+
+class Answer(BaseModel):
+    question_type: str
+    question: str
+    answer: str
+
+class PaperCorrectionRequest(BaseModel):
+    questions: List[Answer]
 
 class Question(BaseModel):
     question: str
@@ -172,21 +190,21 @@ async def analyze_resume(background_tasks: BackgroundTasks):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.post("/api/questions/generate", response_model=List[Question])
-async def generate_questions(request: QuestionGenerationRequest):
-    try:
-        # TODO: Implement question generation logic
-        # This is a mock response
-        questions = [
-            Question(
-                question=f"Sample question for {request.topic}",
-                options=["Option A", "Option B", "Option C", "Option D"],
-                answer="Option A"
-            )
-        ]
-        return questions
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+# @app.post("/api/questions/generate", response_model=List[Question])
+# async def generate_questions(request: QuestionGenerationRequest):
+#     try:
+#         # TODO: Implement question generation logic
+#         # This is a mock response
+#         questions = [
+#             Question(
+#                 question=f"Sample question for {request.topic}",
+#                 options=["Option A", "Option B", "Option C", "Option D"],
+#                 answer="Option A"
+#             )
+#         ]
+#         return questions
+#     except Exception as e:
+#         raise HTTPException(status_code=500, detail=str(e))
     
 @app.post("/job_description/generate")
 async def generate_job_description(request: JobDescriptionRequest):
@@ -201,6 +219,32 @@ async def generate_job_description(request: JobDescriptionRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.post("/api/questions/generate")
+async def question_set_generation(request: QuestionSetGenerationRequest):
+    try:
+        #TODO: Implement job description generation logic
+        question_set = generate_questions(request.num_mcq, request.num_openended, request.num_coding, request.difficulty, request.job_role, request.skills)
+        return question_set
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/correct-answer")
+async def correct_question(request: Answer):
+    try:
+        #TODO: Implement job description generation logic
+        mark = correct_answer(request.question, request.answer, request.question_type)
+        return mark
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
+@app.post("/api/paper/correction")
+async def correct_paper(request: PaperCorrectionRequest):
+    try:
+        #TODO: Implement job description generation logic
+        mark = paper_correction(request.questions)
+        return mark
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
     
 @app.post("/api/video/analyze")
 async def analyze_video(file: UploadFile = File(...)):
