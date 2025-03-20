@@ -6,11 +6,11 @@ from datetime import datetime, timedelta
 import random
 from database.database import SessionLocal, engine
 from models.models import (
-    Company, Job, Candidate, Application, Interview, Offer,
+    Company, Job, Candidate, Interview, 
     PerformanceReview, Interviewer, Source, ExitPrediction,
-    ApplicationStatus, SourceType, Assessment, CandidateStatus,
+    SourceType, Assessment, CandidateStatus,
     AssessmentStatus, QuestionType, CandidateAssessment, Question,
-    Answer, AttitudeAnalysis
+    Answer, AttitudeAnalysis, Lead
 )
 from sqlalchemy import text
 
@@ -24,9 +24,8 @@ def clear_data():
         db.execute(text("DELETE FROM candidate_assessments"))
         db.execute(text("DELETE FROM exit_predictions"))
         db.execute(text("DELETE FROM performance_reviews"))
-        db.execute(text("DELETE FROM offers"))
         db.execute(text("DELETE FROM interviews"))
-        db.execute(text("DELETE FROM applications"))
+        db.execute(text("DELETE FROM leads"))
         db.execute(text("DELETE FROM candidates"))
         db.execute(text("DELETE FROM interviewers"))
         db.execute(text("DELETE FROM sources"))
@@ -148,25 +147,10 @@ def seed_data():
                 resume_score=random.uniform(0.7, 1.0),
                 resume_summary=f"Experienced {roles[i]} with strong technical skills and proven track record in software development.",
                 test_summary=f"Completed technical assessment with {random.randint(70, 100)}% accuracy. Strong problem-solving skills demonstrated.",
-                status=random.choice(list(CandidateStatus))
+                status=CandidateStatus.SOURCED
             )
             db.add(candidate)
             candidates.append(candidate)
-        db.commit()
-
-        # Seed Applications
-        applications = []
-        for i in range(10):
-            application = Application(
-                candidate_id=candidates[i].id,
-                job_id=jobs[i].id,
-                job_role=jobs[i].title,
-                status=random.choice(list(ApplicationStatus)),
-                source_id=sources[i].id,
-                time_to_fill=timedelta(days=random.randint(10, 30))
-            )
-            db.add(application)
-            applications.append(application)
         db.commit()
 
         # Seed Interviews
@@ -183,18 +167,6 @@ def seed_data():
             )
             db.add(interview)
             interviews.append(interview)
-        db.commit()
-
-        # Seed Offers
-        offers = []
-        for i in range(10):
-            offer = Offer(
-                application_id=applications[i].id,
-                offer_date=datetime.utcnow() - timedelta(days=random.randint(1, 15)),
-                accepted=random.choice([True, False])
-            )
-            db.add(offer)
-            offers.append(offer)
         db.commit()
 
         # Seed Performance Reviews
@@ -243,21 +215,27 @@ def seed_data():
 
         # Seed Questions
         questions = []
-        question_prompts = [
-            "Implement a binary search algorithm",
-            "Design a scalable microservices architecture",
-            "Explain SOLID principles",
-            "Write a function to detect palindromes",
-            "Describe your experience with agile methodologies"
+        question_texts = [
+            "Implement a binary search algorithm in your preferred programming language.",
+            "Design a scalable microservices architecture for an e-commerce platform.",
+            "Explain the SOLID principles and provide examples for each.",
+            "Write a function to detect palindromes with optimal time complexity.",
+            "Describe your experience with agile methodologies and how you've implemented them.",
+            "Implement a solution for the traveling salesman problem.",
+            "Design a distributed caching system.",
+            "Explain the differences between REST and GraphQL.",
+            "Write a function to balance a binary search tree.",
+            "Describe how you would design a real-time chat application."
         ]
+        
         for i in range(10):
             for j in range(5):  # 5 questions per assessment
                 question = Question(
                     type=random.choice(list(QuestionType)),
                     job_id=jobs[i].id,
                     assessment_id=assessments[i].id,
+                    txt=question_texts[random.randint(0, len(question_texts)-1)],
                     properties={
-                        "prompt": random.choice(question_prompts),
                         "time_limit": random.randint(5, 30),
                         "points": random.randint(10, 20)
                     }
@@ -296,6 +274,30 @@ def seed_data():
                 calmness_score=random.uniform(0.6, 1.0)
             )
             db.add(attitude_analysis)
+        db.commit()
+
+        # Add Leads section
+        platforms = ["Reddit", "LinkedIn", "Twitter", "GitHub"]
+        subreddits = ["programming", "cscareerquestions", "developerjobs", "techcareers"]
+        lead_statuses = ["NEW", "CONTACTED", "RESPONDED", "REJECTED"]
+        
+        for i in range(10):
+            lead = Lead(
+                username=f"techie_{i+1}",
+                platform=random.choice(platforms),
+                profile_url=f"https://platform.com/users/techie_{i+1}",
+                summary=f"Experienced {roles[i]} with {random.randint(3, 10)} years of experience in software development.",
+                relevance_score=random.randint(70, 100),
+                job_title=roles[i],
+                job_id=jobs[i].id,
+                skills=["Python", "Java", "SQL", "AWS", "Docker"][0:random.randint(2, 5)],
+                location=random.choice(["San Francisco, CA", "New York, NY", "Austin, TX", "Seattle, WA"]),
+                email=f"techie_{i+1}@example.com",
+                contact_info=f"Twitter: @techie_{i+1}",
+                subreddit=random.choice(subreddits),
+                status=random.choice(lead_statuses)
+            )
+            db.add(lead)
         db.commit()
 
     finally:
