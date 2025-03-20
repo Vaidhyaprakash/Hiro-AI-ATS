@@ -24,6 +24,7 @@ from sqlalchemy.orm import Session
 from schemas.schemas import ApplicationFeedbackPayload, JobResponse, ApplicationFeedbackRequest
 import io
 import sys
+from models.models import Candidate, CandidateStatus, Job
 
 # Set environment variable to disable the new security behavior
 os.environ['TORCH_FORCE_WEIGHTS_ONLY'] = '0'
@@ -112,6 +113,25 @@ class ScoreSubmission(BaseModel):
     examId: int
     score: float
     honestyScore: float
+class CandidateResponse(BaseModel):
+    id: Optional[int] = None
+    name: Optional[str] = None
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    location: Optional[str] = None
+    college: Optional[str] = None
+    skills: Optional[str] = None
+    resume_s3_url: Optional[str] = None
+    assessment_score: Optional[float] = None
+    resume_score: Optional[float] = None
+    resume_summary: Optional[str] = None
+    test_summary: Optional[str] = None
+    status: Optional[str] = None
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
+
+    class Config:
+        from_attributes = True
 
 app.websocket("/ws")(websocket_endpoint)
 app.get("/logs")(get_logs)
@@ -302,6 +322,44 @@ async def get_job(
         JobResponse: Job details with company details and candidate count
     """
     return await get_job_by_id(db=db, job_id=job_id)
+
+@app.get("/api/jobs/{job_id}/candidates", response_model=List[CandidateResponse])
+async def get_job_candidates(
+    job_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    Get all candidates who have applied for a specific job.
+    """
+    # First verify the job exists
+    job = db.query(Job).filter(Job.id == job_id).first()
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    
+    # Get all candidates for this job
+    candidates = db.query(Candidate).filter(Candidate.job_id == job_id).all()
+    
+    # Convert SQLAlchemy models to dictionaries
+    return [
+        {
+            "id": c.id,
+            "name": c.name,
+            "email": c.email,
+            "phone": c.phone,
+            "location": c.location,
+            "college": c.college,
+            "skills": c.skills,
+            "resume_s3_url": c.resume_s3_url,
+            "assessment_score": c.assessment_score,
+            "resume_score": c.resume_score,
+            "resume_summary": c.resume_summary,
+            "test_summary": c.test_summary,
+            "status": c.status.value if c.status else None,
+            "created_at": c.created_at.isoformat() if c.created_at else None,
+            "updated_at": c.updated_at.isoformat() if c.updated_at else None
+        }
+        for c in candidates
+    ]
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True) 

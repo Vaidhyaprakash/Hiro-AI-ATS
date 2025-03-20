@@ -44,8 +44,8 @@ class Job(JobBase):
 class JobResponse(JobBase):
     id: int
     company_id: int
-    created_at: datetime
-    updated_at: datetime
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
     company_name: str
     candidate_count: int = 0
 

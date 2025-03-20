@@ -13,6 +13,13 @@ class ApplicationStatus(str, enum.Enum):
     HIRED = "Hired"
     REJECTED = "Rejected"
 
+class CandidateStatus(str, enum.Enum):
+    SOURCED = "Sourced"
+    SCREENING = "Screening"
+    INTERVIEW_1 = "Interview 1"
+    INTERVIEW_2 = "Interview 2"
+    HIRED = "Hired"
+
 class SourceType(str, enum.Enum):
     COLLEGE = "College"
     JOB_PORTAL = "Job Portal"
@@ -68,6 +75,7 @@ class Candidate(Base):
     resume_score = Column(Float, nullable=True)
     resume_summary = Column(Text, nullable=True)
     test_summary = Column(Text, nullable=True)
+    status = Column(Enum(CandidateStatus), default=CandidateStatus.SOURCED)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
