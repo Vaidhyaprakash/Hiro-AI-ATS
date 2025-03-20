@@ -68,10 +68,10 @@ class ApplicationFeedbackRequest(BaseModel):
 
 class CompanyRegistrationRequest(BaseModel):
     name: str
-    description: Optional[str] = None
+    departments: Optional[List[str]] = None
+    locations: Optional[List[str]] = None
+    company_size: Optional[int] = None
     website: Optional[str] = None
-    location: Optional[str] = None
-    industry: Optional[str] = None
 
 class CandidateApplicationRequest(BaseModel):
     company_id: int
@@ -177,10 +177,10 @@ async def register_new_company(
     return await register_company(
         db=db,
         name=request.name,
-        description=request.description,
-        website=request.website,
-        location=request.location,
-        industry=request.industry
+        departments=request.departments,
+        locations=request.locations,
+        company_size=request.company_size,
+        website=request.website
     )
 
 @app.post("/api/candidates/apply")

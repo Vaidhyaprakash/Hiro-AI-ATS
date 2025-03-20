@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, Float, Text, DateTime, JSON, Interval, Enum, UniqueConstraint
+from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, Float, Text, DateTime, JSON, Interval, Enum, UniqueConstraint, ARRAY
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from datetime import datetime
@@ -25,10 +25,10 @@ class Company(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, unique=True, index=True)
-    description = Column(Text)
+    departments = Column(ARRAY(String), nullable=True)
+    locations = Column(ARRAY(String), nullable=True)
+    company_size = Column(Integer, nullable=True)
     website = Column(String, nullable=True)
-    location = Column(String, nullable=True)
-    industry = Column(String, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     jobs = relationship("Job", back_populates="company")

@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from models.models import Company, Job, Candidate, Application, ApplicationStatus
 from schemas.schemas import CompanyCreate, JobCreate, ApplicationFeedbackPayload
 import httpx
-from typing import Optional
+from typing import Optional, List
 import urllib.parse
 from pydantic import BaseModel
 from datetime import datetime
@@ -12,16 +12,19 @@ from sqlalchemy import func
 class CompanyResponse(BaseModel):
     id: int
     name: str
-    description: str
+    departments: Optional[List[str]] = None
+    locations: Optional[List[str]] = None
+    company_size: Optional[int] = None
+    website: Optional[str] = None
     created_at: Optional[str] = None
 
 async def register_company(
     db: Session,
     name: str,
-    description: Optional[str] = None,
-    website: Optional[str] = None,
-    location: Optional[str] = None,
-    industry: Optional[str] = None
+    departments: Optional[List[str]] = None,
+    locations: Optional[List[str]] = None,
+    company_size: Optional[int] = None,
+    website: Optional[str] = None
 ) -> CompanyResponse:
     """
     Register a new company in the database.
@@ -29,10 +32,10 @@ async def register_company(
     Args:
         db: Database session
         name: Name of the company
-        description: Company description (optional)
+        departments: List of departments (optional)
+        locations: List of locations (optional)
+        company_size: Number of employees (optional)
         website: Company website URL (optional)
-        location: Company location (optional)
-        industry: Company industry (optional)
     
     Returns:
         CompanyResponse: Details of the created company
@@ -50,10 +53,10 @@ async def register_company(
         # Create company in database
         company = Company(
             name=name,
-            description=description or f"Company {name}",
-            website=website,
-            location=location,
-            industry=industry
+            departments=departments,
+            locations=locations,
+            company_size=company_size,
+            website=website
         )
         db.add(company)
         db.commit()
@@ -62,7 +65,10 @@ async def register_company(
         return CompanyResponse(
             id=company.id,
             name=company.name,
-            description=company.description,
+            departments=company.departments,
+            locations=company.locations,
+            company_size=company.company_size,
+            website=company.website,
             created_at=str(company.created_at) if hasattr(company, 'created_at') else None
         )
 
@@ -125,6 +131,8 @@ async def create_application_feedback(
         # Construct URL with proper query parameters
         encoded_params = urllib.parse.urlencode(params)
         feedback_url_with_params = f"{feedback_url}?{encoded_params}"
+
+        
 
         return {
             "company_id": company_id,
