@@ -1,39 +1,42 @@
-from models.models import Question, CandidateAssessment
+from models.models import Question, CandidateAssessment, Answer
 from sqlalchemy.orm import Session
 from paperCorrection import paper_correction
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy import cast, String
+from pydantic import BaseModel
 
 
-def handleWorkflow(answers: dict, db: Session):
+
+def handleWorkflow(answers: dict, db: Session, candidate_assessment_id: int):
     assessment_id = ""
     for key, value in answers.items():
-        question_id = key
-        question = db.query(Question).filter(
-            cast(Question.properties['question_id'], String) == str(question_id)
-        ).first()
-        if question:
-            question.properties['answer'] = value
-            db.commit()
-            print(f"Question {question_id} updated with answer {value}")
-        else:
-            print(f"Question {question_id} not found")
-        assessment_id = question.assessment_id
-    callPaperCorrection(db, assessment_id)
+        candidate_assessment = db.query(CandidateAssessment).filter(CandidateAssessment.id == candidate_assessment_id).first()
+        answer = Answer(
+            question_id=key,
+            candidate_id=candidate_assessment.candidate_id,
+            candidate_assessment_id=candidate_assessment.id,
+            answer=value
+        )
+        db.add(answer)
+        db.commit()
+    callPaperCorrection(db, candidate_assessment)
 
-def callPaperCorrection(db: Session, assessment_id: int):
-    questions = db.query(Question).filter(Question.assessment_id == assessment_id).all()
-    answers = []
+def callPaperCorrection(db: Session, candidate_assessment: CandidateAssessment):
+    questions = db.query(Question).filter(Question.assessment_id == candidate_assessment.assessment_id).all()
+    
+    answers_to_correct = []
     for question in questions:
+        answer_record = db.query(Answer).filter(Answer.question_id == question.id, Answer.candidate_assessment_id == candidate_assessment.id).first()
         answer = {
             "question_id": question.properties['question_id'],
-            "answer": question.properties['answer'],
+            "answer": answer_record.answer,
             "question_type": question.type,
-            "question": question.txt
+            "question": question.txt,
+            "candidate_assessment_id": candidate_assessment.id,
+            "id": answer_record.id
         }
-        answers.append(answer)
-    result = paper_correction(answers)
+        answers_to_correct.append(answer)
+    result = paper_correction(answers_to_correct, db)
     print("Result: ", result)
-    candidate_assessment = db.query(CandidateAssessment).filter(CandidateAssessment.assessment_id == assessment_id).first()
-    candidate_assessment.properties['result'] = result
+    db.query(CandidateAssessment).filter(CandidateAssessment.id == candidate_assessment.id).update({"properties": result})
     db.commit()

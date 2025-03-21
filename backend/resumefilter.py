@@ -99,7 +99,7 @@ def score_resumes(job_description: str, resume: str):
 
 async def process_resumes(job_id: int, db: Session):
     job = db.query(Job).filter(Job.id == job_id).first()
-    candidates = db.query(Candidate).filter(Candidate.job_id == job_id).all()
+    candidates = db.query(Candidate).filter(Candidate.job_id == job_id, Candidate.status == "SOURCED").all()
     
     
     for candidate in candidates:

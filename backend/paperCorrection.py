@@ -2,12 +2,17 @@ import ollama
 from stringToJSON import getJSON
 from typing import List
 from pydantic import BaseModel
+from sqlalchemy.orm import Session
+from models.models import CandidateAssessment
+
 
 class Answer(BaseModel):
     question: str
     answer: str
     question_type: str
     question_id: int
+    candidate_assessment_id: int
+    id: int
 
 
 json_format = {
@@ -46,7 +51,7 @@ def correct_answer(question: str, answer: str, question_type: str):
         return getJSON(response["message"]["content"], json_format)
 
 
-def paper_correction(questions: List[Answer]):
+def paper_correction(questions: List[Answer], db: Session):
     # Initialize result structures
     detailed_scores = {
         "coding": [],
@@ -74,7 +79,8 @@ def paper_correction(questions: List[Answer]):
             retries += 1
         
         score = result.get("score", 0) if result and "score" in result else 0
-        
+        db.query(Answer).filter(Answer.id == answer["id"]).update({"score": score})
+        db.commit()
         # Add to detailed scores
         question_score = {
             "question": answer["question"],
@@ -97,4 +103,3 @@ def paper_correction(questions: List[Answer]):
         "detailed_scores": detailed_scores,
         "summary_scores": summary_scores
     }
-    

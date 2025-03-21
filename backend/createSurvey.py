@@ -2,9 +2,11 @@ import requests
 import os
 from typing import List
 from questionGenerator import generate_questions
-from models.models import Assessment, Question
+from models.models import Assessment, Question, CandidateAssessment
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
+from models.models import Question
+from datetime import datetime
 
 def create_survey(survey_name: str):
     url = "https://api.salesparrow.com/v3/surveys"
@@ -59,18 +61,19 @@ def create_channel(name: str, survey_id: int):
     print(f"Channel created: {response.json()}")
     return response.json()["data"]
 
-def create_workflow(survey_id: int, assessment_id: int, db: Session):
+def create_workflow(survey_id: int, assessment_id: int, db: Session, candidate_assessment: CandidateAssessment):
     url = "https://api.salesparrow.com/v3/webhooks"
     headers = {
         "Authorization": f"Bearer {os.getenv('SURVEYSPARROW_API_KEY')}",
         "Content-Type": "application/json"
     }
     data = {
-        "url": os.getenv('NGROK_URL') + "/api/submit-answer",
+        "url": os.getenv('NGROK_URL') + "/api/answer/submit",
         "survey_id": survey_id,
         "http_method": "POST",
         "payload": {
-            "answers": {}
+            "answers": {},
+            "candidate_assessment_id": candidate_assessment.id
         }
     } 
     questions = db.query(Question).filter(
@@ -78,7 +81,7 @@ def create_workflow(survey_id: int, assessment_id: int, db: Session):
         Question.type != 'CODING'
     ).all()
     for question in questions:
-        data["payload"]["answers"][question.properties['question_id']] = f"{{question_{question.properties['question_id']}}}"
+        data["payload"]["answers"][question.id] = f"{{question_{question.properties['question_id']}}}"
     response = requests.post(url, headers=headers, json=data)
     print(f"Workflow created -> {response.json()}")
     return response.json()["data"]
@@ -179,6 +182,8 @@ def generateQuestionsAndStore(num_mcq: int, num_openended: int, num_coding: int,
             "assessment_link": channel["url"]
         })
     db.commit()
-    create_workflow(survey["id"], assessment_id, db)
+    candidate_assessment = db.query(CandidateAssessment).filter(CandidateAssessment.assessment_id == assessment_id).first()
+    db.commit()
+    create_workflow(survey["id"], assessment_id, db, candidate_assessment)
     return {"success": True}
 

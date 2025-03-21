@@ -1,7 +1,6 @@
 from pydantic import BaseModel, EmailStr
 from typing import Optional, List
 from datetime import datetime
-from models.models import ApplicationStatus
 
 # Company schemas
 class CompanyBase(BaseModel):
@@ -211,3 +210,42 @@ class Answer(AnswerBase):
 
     class Config:
         from_attributes = True 
+
+
+class AttitudeAnalysisBase(BaseModel):
+    candidate_id: int
+    job_id: int
+    culture_fit_score: float
+    confidence_score: float
+    positivity_score: float
+    enthusiasm_score: float
+    calmness_score: float
+
+class AttitudeAnalysisCreate(AttitudeAnalysisBase):
+    pass
+
+class AttitudeAnalysis(AttitudeAnalysisBase):
+    id: int
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class InterviewBase(BaseModel):
+    id: int
+    created_at: datetime
+    updated_at: datetime
+
+class InterviewCreate(InterviewBase):
+    pass
+
+class Interview(InterviewBase):
+    id: int
+    candidate_id: int
+    job_id: int
+
+    class Config:
+        from_attributes = True
+

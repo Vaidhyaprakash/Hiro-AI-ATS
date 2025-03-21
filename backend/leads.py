@@ -766,8 +766,8 @@ async def generate_leads(job_title: str, skills: List[str], location: str, db: S
     max_leads_per_source = max_leads // 2  # Split between Reddit and LinkedIn
     
     # # Process Reddit leads
-    # reddit_leads = await process_reddit_leads(job_title, skills, location, db, job_id, max_leads_per_source)
-    # all_leads.extend(reddit_leads)
+    reddit_leads = await process_reddit_leads(job_title, skills, location, db, job_id, max_leads_per_source)
+    all_leads.extend(reddit_leads)
     
     # Process LinkedIn leads
     linkedin_leads = await process_linkedin_leads(job_title, skills, location, db, job_id, max_leads_per_source)
