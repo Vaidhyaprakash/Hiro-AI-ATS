@@ -15,7 +15,7 @@ import shutil
 from fastapi import UploadFile
 from pathlib import Path
 import uuid
-from models.models import AttitudeAnalysis
+from models.models import AttitudeAnalysis, Interview
 from sqlalchemy.orm import Session
 UPLOAD_DIR = Path("uploads")
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
@@ -153,7 +153,7 @@ def save_file_locally(uploaded_file: UploadFile, file_type: str):
         shutil.copyfileobj(uploaded_file.file, buffer)
     return str(file_path)
 
-def process_video_and_audio(db: Session, job_id, candidate_id, video_path, audio_path):
+def process_video_and_audio(db: Session, job_id, candidate_id,interview_id, video_path, audio_path):
     video_analysis = analyze_video(video_path)
     audio_analysis = analyze_audio(audio_path)
 
@@ -177,6 +177,12 @@ def process_video_and_audio(db: Session, job_id, candidate_id, video_path, audio
         enthusiasm_score=attitude_parameters["enthusiasm"],
         calmness_score=attitude_parameters["calmness"]
     )
+    interview = db.query(Interview).filter(Interview.id == interview_id).first()
+    interview.culture_fit_score = overall_match
+    interview.attitude_score = attitude_parameters["confidence"]
+    interview.contribution_score = attitude_parameters["positivity"]
+    db.commit()
+    db.refresh(interview)
 
     db.add(attitude_analysis)
     db.commit()
