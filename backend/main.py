@@ -833,7 +833,7 @@ if __name__ == "__main__":
 async def map_candidate_to_first_assessment(candidate_id: int, job_id: int, db: Session = Depends(get_db)):
     # Get first assessment for this job
     first_assessment = db.query(Assessment)\
-        .filter(Assessment.job_id == job_id)\
+        .filter(Assessment.job_id == job_id,Assessment.type =="initial_screening")\
         .order_by(Assessment.id)\
         .first()
     
