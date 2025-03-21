@@ -853,6 +853,14 @@ async def find_candidates(job_id: int, skills: List[str], location: str, db: Ses
                 "message": "Job not found. Please provide a valid job ID."
             }
 
+        # Check if smart hire has already been enabled for this job
+        if job.smart_hire_enabled:
+            print(f"⚠️ Smart hire has already been triggered for job ID: {job_id}")
+            return {
+                "status": "error",
+                "message": "Smart hire has already been triggered for this job."
+            }
+
         # Start lead generation in background
         background_tasks.add_task(
             generate_leads,
@@ -862,6 +870,10 @@ async def find_candidates(job_id: int, skills: List[str], location: str, db: Ses
             db,
             job_id
         )
+        
+        # Update smart_hire_enabled flag
+        job.smart_hire_enabled = True
+        db.commit()
         
         return {
             "status": "success",
@@ -877,4 +889,48 @@ async def find_candidates(job_id: int, skills: List[str], location: str, db: Ses
         return {
             "status": "error",
             "message": f"An error occurred: {str(e)}"
+        }
+
+async def get_job_leads(job_id: int, db: Session):
+    """Get all leads for a specific job."""
+    try:
+        # Get the job first to check smart_hire_enabled
+        job = db.query(Job).filter(Job.id == job_id).first()
+        if not job:
+            return {
+                "status": "error",
+                "message": "Job not found"
+            }
+
+        if not job.smart_hire_enabled:
+            return {
+                "status": "error",
+                "message": "Smart hire not enabled for this job"
+            }
+
+        # Get all leads for this job
+        leads = db.query(Lead).filter(Lead.job_id == job_id).all()
+        
+        return {
+            "status": "success",
+            "leads": [{
+                "id": lead.id,
+                "name": lead.username,
+                "platform": lead.platform,
+                "profile_url": lead.profile_url,
+                "email": lead.email,
+                "location": lead.location,
+                "skills": lead.skills,
+                "relevance_score": lead.relevance_score,
+                "status": lead.status,
+                "contact_info": lead.contact_info,
+                "created_at": lead.created_at.isoformat() if lead.created_at else None,
+                "updated_at": lead.updated_at.isoformat() if lead.updated_at else None
+            } for lead in leads]
+        }
+    except Exception as e:
+        print(f"⚠️ Error getting leads: {str(e)}")
+        return {
+            "status": "error",
+            "message": str(e)
         } 

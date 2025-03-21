@@ -8,6 +8,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CandidatesList } from "@/components/candidates/candidates-list";
 import { ScreenedCandidatesList } from "@/components/candidates/screened-candidates-list";
 import { motion, AnimatePresence } from "framer-motion";
+import { AssessmentList } from "@/components/candidates/assessment-list";
+import { InterviewCandidatesList } from "@/components/candidates/interview-candidates-list";
+import { HiredCandidatesList } from "@/components/candidates/hired-candidates-list";
 
 interface JobDetails {
   id: number;
@@ -293,31 +296,56 @@ export default function JobDetailsPage() {
                   </TabsContent>
 
                   <TabsContent value="assessment" className="mt-0">
-                    <div className="bg-white rounded-lg shadow-sm p-6">
-                      <div className="text-center py-12">
-                        <h3 className="text-lg font-medium">No Candidates in Assessment Stage</h3>
-                        <p className="text-muted-foreground mt-2">Move candidates to this stage to begin assessments.</p>
+                  <div className="bg-white rounded-lg shadow-sm p-6">
+                      <div className="flex justify-between items-center mb-6">
+                        <h2 className="text-2xl font-semibold text-[#4b7a3e]">Assessment Candidates</h2>
+                        <div className="flex items-center gap-2">
+                          <Button variant="outline" size="icon" className="rounded-full">
+                            <Settings className="h-4 w-4" />
+                          </Button>
+                          <Button variant="outline" size="icon" className="rounded-full">
+                            <Mail className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </div>
+
+                      <AssessmentList jobs={[job]} candidates={assessmentCandidates} fetchCandidates={handleCandidatesFetch}/>
                     </div>
                   </TabsContent>
 
                   <TabsContent value="interview" className="mt-0">
-                    <div className="bg-white rounded-lg shadow-sm p-6">
-                      <div className="text-center py-12">
-                        <h3 className="text-lg font-medium">No Candidates in Interview Stage</h3>
-                        <p className="text-muted-foreground mt-2">Move candidates to this stage to schedule interviews.</p>
+                  <div className="bg-white rounded-lg shadow-sm p-6">
+                      <div className="flex justify-between items-center mb-6">
+                        <h2 className="text-2xl font-semibold text-[#4b7a3e]">Interview Candidates</h2>
+                        <div className="flex items-center gap-2">
+                          <Button variant="outline" size="icon" className="rounded-full">
+                            <Settings className="h-4 w-4" />
+                          </Button>
+                          <Button variant="outline" size="icon" className="rounded-full">
+                            <Mail className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </div>
+
+                      <InterviewCandidatesList jobs={[job]} candidates={interviewCandidates} fetchCandidates={handleCandidatesFetch}/>
                     </div>
                   </TabsContent>
 
                   <TabsContent value="hired" className="mt-0">
-                    <div className="bg-white rounded-lg shadow-sm p-6">
-                      <div className="text-center py-12">
-                        <h3 className="text-lg font-medium">No Hired Candidates</h3>
-                        <p className="text-muted-foreground mt-2">
-                          Move candidates to this stage when they accept an offer.
-                        </p>
+                  <div className="bg-white rounded-lg shadow-sm p-6">
+                      <div className="flex justify-between items-center mb-6">
+                        <h2 className="text-2xl font-semibold text-[#4b7a3e]">Interview Candidates</h2>
+                        <div className="flex items-center gap-2">
+                          <Button variant="outline" size="icon" className="rounded-full">
+                            <Settings className="h-4 w-4" />
+                          </Button>
+                          <Button variant="outline" size="icon" className="rounded-full">
+                            <Mail className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </div>
+
+                      <HiredCandidatesList jobs={[job]} candidates={hiredCandidates} fetchCandidates={handleCandidatesFetch}/>
                     </div>
                   </TabsContent>
                 </motion.div>
@@ -339,7 +367,7 @@ export default function JobDetailsPage() {
               <div className="border-t pt-4 flex justify-between">
                 <div className="mr-xl">
                   <h3 className="font-medium">Status</h3>
-                  <p>{job.properties.status}</p>
+                  <p>{job.properties?.status}</p>
                 </div>
                 <div>
                   <h3 className="font-medium">Open</h3>

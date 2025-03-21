@@ -43,7 +43,7 @@ interface CandidatesListProps {
   fetchCandidates: () => void
 }
 
-export function ScreenedCandidatesList({ jobs, candidates, fetchCandidates }: CandidatesListProps) {
+export function AssessmentList({ jobs, candidates, fetchCandidates }: CandidatesListProps) {
   const [selectAll, setSelectAll] = useState(false)
   const [selectedCandidates, setSelectedCandidates] = useState<string[]>([])
   const [isClient, setIsClient] = useState(false)
@@ -132,8 +132,6 @@ export function ScreenedCandidatesList({ jobs, candidates, fetchCandidates }: Ca
       </div>
     )
   }
-  console.log(candidates)
-  console.log("frontend/components/screened-candidates-list.tsx")
   return (
     <div className="overflow-x-auto">
       <table className="w-full">
@@ -198,8 +196,8 @@ export function ScreenedCandidatesList({ jobs, candidates, fetchCandidates }: Ca
               <td className="py-4">
                 <div className="flex flex-col space-y-2">
                   <div className="flex flex-col justify-between">
-                  <span className="text-sm font-medium py-1 rounded">
-                      Score: {candidate?.resume_score?.toFixed(2) || 'N/A'}
+                    <span className="text-sm font-medium py-1 rounded">
+                      Score: {candidate?.assessment_score ? candidate.assessment_score.toFixed(2) : 'Not Attended'}
                     </span>
                     <Popover>
                       <PopoverTrigger asChild>
@@ -210,12 +208,11 @@ export function ScreenedCandidatesList({ jobs, candidates, fetchCandidates }: Ca
                       </PopoverTrigger>
                       <PopoverContent className="w-80 p-4">
                         <div className="space-y-2">
-                          <h4 className="font-medium">Resume Summary</h4>
-                          <p className="text-sm text-gray-700">{candidate.resume_summary || "No summary available"}</p>
+                          <h4 className="font-medium">Assessment Summary</h4>
+                          <p className="text-sm text-gray-700">{candidate.test_summary || "No summary available"}</p>
                         </div>
                       </PopoverContent>
                     </Popover>
-                   
                   </div>
                 </div>
               </td>
@@ -252,11 +249,9 @@ export function ScreenedCandidatesList({ jobs, candidates, fetchCandidates }: Ca
                             setLoading(candidate.id)
                             console.log(`Moving candidate ${candidate.id} to next step`);
                             try {
-                              const response = await moveCandidateToNextStep(candidate.id, "Assessment")
-                              console.log(response);
+                              await moveCandidateToNextStep(candidate.id, "Interview")
                               toast({variant: "success", title: "Candidate moved to next step", description: "Candidate moved to next step"})
                             } catch (error) {
-                              console.log('response')
                               toast({variant: "error", title: "Error moving candidate to next step", description: "Please try again later"})
                               console.error("Error moving candidate to next step:", error);
                             }
