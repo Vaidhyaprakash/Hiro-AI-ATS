@@ -361,7 +361,8 @@ async def get_job_by_id(
                 status_code=404,
                 detail=f"Company for job ID {job_id} not found"
             )
-
+        print(job,'printing job')
+        print(f"  Smart hire enabled: {job.smart_hire_enabled}")
         return JobResponse(
             id=job.id,
             title=job.title,
@@ -372,7 +373,8 @@ async def get_job_by_id(
             created_at=job.created_at,
             updated_at=job.updated_at,
             company_name=company.name,
-            candidate_count=candidate_count
+            candidate_count=candidate_count,
+            smart_hire_enabled=job.smart_hire_enabled
         )
 
     except HTTPException as he:

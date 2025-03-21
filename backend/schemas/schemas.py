@@ -47,6 +47,7 @@ class JobResponse(JobBase):
     updated_at: Optional[datetime] = None
     company_name: str
     candidate_count: int = 0
+    smart_hire_enabled: bool = False
 
     class Config:
         from_attributes = True

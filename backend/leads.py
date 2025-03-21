@@ -709,7 +709,7 @@ def get_email_from_hunter(full_name: str, company_domain: str = None, linkedin_u
         print(f"⚠️ Error in Hunter.io API call: {str(e)}")
         return {"email": "Not provided", "score": 0}
 
-async def process_linkedin_leads(job_title: str, skills: List[str], location: str, db: Session, job_id: int, max_leads: int = 30) -> List[Dict]:
+async def process_linkedin_leads(job_title: str, skills: List[str], location: str, db: Session, job_id: int, max_leads: int = 2) -> List[Dict]:
     """Process LinkedIn leads using Google Search and Llama3."""
     leads = []
     try:
@@ -760,7 +760,7 @@ async def process_linkedin_leads(job_title: str, skills: List[str], location: st
     return leads
 
 # Update the generate_leads function to include LinkedIn processing
-async def generate_leads(job_title: str, skills: List[str], location: str, db: Session, job_id: int, max_leads: int = 30) -> List[Dict]:
+async def generate_leads(job_title: str, skills: List[str], location: str, db: Session, job_id: int, max_leads: int = 2) -> List[Dict]:
     """Main function to generate and store leads from both Reddit and LinkedIn."""
     all_leads = []
     max_leads_per_source = max_leads // 2  # Split between Reddit and LinkedIn

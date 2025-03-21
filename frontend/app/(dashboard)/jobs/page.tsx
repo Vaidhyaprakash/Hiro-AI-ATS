@@ -204,8 +204,9 @@ export default function JobsPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Candidates</TableHead>
-                <TableHead>Job Opening</TableHead>
+               
+                  <TableHead>Job Opening</TableHead>
+                  <TableHead>Candidates</TableHead>
                 <TableHead>Hiring Lead</TableHead>
                 <TableHead>Created On</TableHead>
                 <TableHead>Status</TableHead>
@@ -215,13 +216,7 @@ export default function JobsPage() {
             <TableBody>
               {filteredJobs.map((job) => (
                 <TableRow key={job.id}>
-                  <TableCell>
-                    <div className="flex items-center gap-1 justify-center">
-                      <div className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-xs text-primary">
-                        {job.candidates || job.candidate_count || 0}
-                      </div>
-                    </div>
-                  </TableCell>
+                  
                   <TableCell>
                     <div>
                       <div className="font-medium text-primary hover:underline">
@@ -229,6 +224,13 @@ export default function JobsPage() {
                       </div>
                       <div className="text-sm text-muted-foreground">
                         {job.department || (job.properties && job.properties.department)} - {job.location || (job.properties && job.properties.location)}
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-1">
+                      <div className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-xs text-primary">
+                        {job.candidates || job.candidate_count || 0}
                       </div>
                     </div>
                   </TableCell>
