@@ -1,8 +1,8 @@
-"""init
+"""description
 
-Revision ID: 49831dd3d0af
+Revision ID: c973229237db
 Revises: 
-Create Date: 2025-03-21 04:26:35.296755
+Create Date: 2025-03-21 13:54:08.595636
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = '49831dd3d0af'
+revision: str = 'c973229237db'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -57,6 +57,7 @@ def upgrade() -> None:
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=True),
     sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=True),
     sa.Column('properties', sa.JSON(), nullable=True),
+    sa.Column('smart_hire_enabled', sa.Boolean(), nullable=True),
     sa.ForeignKeyConstraint(['company_id'], ['companies.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
@@ -118,8 +119,7 @@ def upgrade() -> None:
     sa.Column('created_at', sa.DateTime(), nullable=True),
     sa.Column('updated_at', sa.DateTime(), nullable=True),
     sa.ForeignKeyConstraint(['job_id'], ['jobs.id'], ),
-    sa.PrimaryKeyConstraint('id'),
-    sa.UniqueConstraint('email')
+    sa.PrimaryKeyConstraint('id')
     )
     op.create_index(op.f('ix_leads_id'), 'leads', ['id'], unique=False)
     op.create_table('attitude_analysis',
@@ -189,7 +189,7 @@ def upgrade() -> None:
     op.create_index(op.f('ix_performance_reviews_id'), 'performance_reviews', ['id'], unique=False)
     op.create_table('questions',
     sa.Column('id', sa.Integer(), nullable=False),
-    sa.Column('type', sa.Enum('CODING', 'MCQ', 'ESSAY', name='questiontype'), nullable=True),
+    sa.Column('type', sa.Enum('CODING', 'MCQ', 'OPEN_ENDED', 'ESSAY', name='questiontype'), nullable=True),
     sa.Column('txt', sa.Text(), nullable=False),
     sa.Column('job_id', sa.Integer(), nullable=True),
     sa.Column('assessment_id', sa.Integer(), nullable=True),
