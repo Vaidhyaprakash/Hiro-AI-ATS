@@ -89,9 +89,11 @@ export default function JobDetailsPage() {
         const data = await response.json();
         setJob(data);
         for (const assessment of data.assessments) {
-          const responseCandidates = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/assessments/${assessment.id}/candidates`);
+          const responseCandidates =  await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/assessments/${assessment.id}/candidates`);
           const dataCandidates = await responseCandidates.json();
-          if(dataCandidates.total_count > 0) {
+          console.log("dataCandidates", dataCandidates);
+          if (dataCandidates.total_candidates > 0) {
+            
             setAssessmentsCount({
               ...assessmentsCount,
               [assessment.id]: dataCandidates.total_candidates
@@ -261,12 +263,26 @@ export default function JobDetailsPage() {
                     {assessment.title} ({assessmentsCount[assessment.id] || 0})
                   </TabsTrigger>
                 ))}
-                <TabsTrigger
+                {job.assessments?.length > 0 && job.assessments.filter(assessment =>
+                  assessment.type === 'interview'
+                ).map((assessment) => {
+                  console.log(assessment);
+                  return (
+                    <TabsTrigger
+                      key={assessment.id}
+                      value={`assessment-${assessment.id}`}
+                      className="data-[state=active]:border-b-2 data-[state=active]:border-[#4b7a3e] data-[state=active]:text-[#4b7a3e] rounded-none bg-transparent h-10 px-4"
+                    >
+                      {assessment.title} ({assessmentsCount[assessment.id] || 0})
+                    </TabsTrigger>
+                  )
+                })}
+                {/* <TabsTrigger
                   value="interview"
                   className="data-[state=active]:border-b-2 data-[state=active]:border-[#4b7a3e] data-[state=active]:text-[#4b7a3e] rounded-none bg-transparent h-10 px-4"
                 >
                   Interview ({interviewCandidates.length || 0})
-                </TabsTrigger>
+                </TabsTrigger> */}
                 <TabsTrigger
                   value="hired"
                   className="data-[state=active]:border-b-2 data-[state=active]:border-[#4b7a3e] data-[state=active]:text-[#4b7a3e] rounded-none bg-transparent h-10 px-4"
@@ -349,7 +365,7 @@ export default function JobDetailsPage() {
 
                   </TabsContent>
 
-                  <TabsContent value="interview" className="mt-0">
+                  {/* <TabsContent value="interview" className="mt-0">
                   <div className="bg-white rounded-lg shadow-sm p-6">
                       <div className="flex justify-between items-center mb-6">
                         <h2 className="text-2xl font-semibold text-[#4b7a3e]">Interview Candidates</h2>
@@ -365,7 +381,7 @@ export default function JobDetailsPage() {
 
                       <InterviewCandidatesList jobs={[job]} candidates={interviewCandidates} fetchCandidates={handleCandidatesFetch}/>
                     </div>
-                  </TabsContent>
+                  </TabsContent> */}
 
                   <TabsContent value="hired" className="mt-0">
                   <div className="bg-white rounded-lg shadow-sm p-6">
@@ -410,6 +426,34 @@ export default function JobDetailsPage() {
                       </div>
                     </TabsContent>
                   ))}
+                  {job.assessments?.length > 0 && job.assessments.filter(assessment => 
+                    assessment.type === 'interview'
+                  ).map((assessment) => {
+                    console.log(assessment, "interview");
+                    return (
+                      <TabsContent key={assessment.id} value={`assessment-${assessment.id}`} className="mt-0">
+                        <div className="bg-white rounded-lg shadow-sm p-6">
+                          <div className="flex justify-between items-center mb-6">
+                          <h2 className="text-2xl font-semibold text-[#4b7a3e]">{assessment.title} Candidates</h2>
+                          <div className="flex items-center gap-2">
+                            <Button variant="outline" size="icon" className="rounded-full">
+                              <Settings className="h-4 w-4" />
+                            </Button>
+                            <Button variant="outline" size="icon" className="rounded-full">
+                              <Mail className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+
+                        <InterviewCandidatesList 
+                          jobs={[job]} 
+                          candidates={[]} 
+                          assessment={assessment}
+                        />
+                      </div>
+                      </TabsContent>
+                    )
+                  })}
                   <TabsContent value="smarthire" className="mt-0">
                   <div className="bg-white rounded-lg shadow-sm p-6">
                       <div className="flex justify-between items-center mb-6">

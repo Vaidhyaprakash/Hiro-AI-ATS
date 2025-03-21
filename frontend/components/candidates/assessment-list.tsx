@@ -54,12 +54,24 @@ export function AssessmentList({ jobs, assessment }: CandidatesListProps) {
   
   // Only run date formatting on the client
   const [candidates, setCandidates] = useState<any[]>([])
+  const [assessmentDataCandidates, setAssessmentDataCandidates] = useState<Record<number, any>>({})
   const fetchCandidates = async () => {
     if (!assessment.id) return
     console.log("assessment.id", assessment.id);
     const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/assessments/${assessment.id}/candidates`)
     const data = await response.json()
-    setCandidates(data?.candidates || [])
+    
+    // Map assessment details to candidate IDs
+    const assessmentDataMap: Record<number, any> = {}
+    data?.candidates.forEach((candidate: any) => {
+      assessmentDataMap[candidate.candidate_details.id] = candidate?.assessment_details
+    })
+    console.log("assessmentDataMap", assessmentDataMap);
+    setAssessmentDataCandidates(assessmentDataMap)
+    
+    const candidatesData = data?.candidates.map((candidate: any) => candidate.candidate_details)
+    console.log("candidatesData", candidatesData);
+    setCandidates(candidatesData)
   }
   useEffect(() => {
     setIsClient(true)
@@ -83,7 +95,7 @@ export function AssessmentList({ jobs, assessment }: CandidatesListProps) {
     }
   }
   const moveCandidateToNextStep = async (candidateId: number, status: string) => {
-   await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/candidates/${candidateId}/update-status?status=${status}`, {
+   await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/update/candidate-assessment/${assessment?.id}/${candidateId}/job/${jobs[0].id}`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -122,6 +134,13 @@ export function AssessmentList({ jobs, assessment }: CandidatesListProps) {
     }
   }
 
+  const getScoreColorClass = (score: number | undefined) => {
+    if (score === undefined || score < 0 || score > 100) return "text-gray-500"
+    if (score < 50) return "text-red-500"
+    if (score < 70) return "text-yellow-500"
+    return "text-green-500"
+  }
+
   if (candidates?.length === 0) {
     return (
       <div className="text-center py-8">
@@ -141,7 +160,7 @@ export function AssessmentList({ jobs, assessment }: CandidatesListProps) {
             <th className="pb-2 font-normal text-gray-500">Status</th>
             <th className="pb-2 font-normal text-gray-500">Skills</th>
             <th className="pb-2 font-normal text-gray-500">Applied</th>
-            <th className="pb-2 font-normal text-gray-500">Resume</th>
+            <th className="pb-2 font-normal text-gray-500">Score</th>
           </tr>
         </thead>
         <tbody>
@@ -204,10 +223,52 @@ export function AssessmentList({ jobs, assessment }: CandidatesListProps) {
                         </button>
                       </PopoverTrigger>
                       <PopoverContent className="w-80 p-4">
-                        <div className="space-y-2">
-                          <h4 className="font-medium">Assessment Summary</h4>
-                          <p className="text-sm text-gray-700">{candidate.test_summary || "No summary available"}</p>
-                        </div>
+                        {assessmentDataCandidates[candidate.id]?.status === "pending" ? (
+                          <div className="text-center py-2">
+                            <p className="text-sm text-gray-600">Yet to take assessment</p>
+                            {assessmentDataCandidates[candidate.id]?.started_at && (
+                              <p className="text-xs text-gray-500 mt-1">
+                                Started: {formatDate(assessmentDataCandidates[candidate.id]?.started_at)}
+                              </p>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="space-y-3">
+                            <h4 className="font-medium">Assessment Details</h4>
+                            <div className="grid grid-cols-2 gap-2 text-sm">
+                              <span className="text-gray-600">Status:</span>
+                              <span>{assessmentDataCandidates[candidate.id]?.status || "N/A"}</span>
+                              
+                              <span className="text-gray-600">Overall Score:</span>
+                              <span className={`font-medium ${
+                                getScoreColorClass(assessmentDataCandidates[candidate.id]?.overall_score)
+                              }`}>
+                                {assessmentDataCandidates[candidate.id]?.overall_score || "N/A"}
+                              </span>
+                              
+                              <span className="text-gray-600">Honesty Score:</span>
+                              <span className={`font-medium ${
+                                getScoreColorClass(assessmentDataCandidates[candidate.id]?.honesty_score)
+                              }`}>
+                                {assessmentDataCandidates[candidate.id]?.honesty_score || "N/A"}
+                              </span>
+                              
+                              {assessmentDataCandidates[candidate.id]?.completed_at && (
+                                <>
+                                  <span className="text-gray-600">Completed:</span>
+                                  <span>{formatDate(assessmentDataCandidates[candidate.id]?.completed_at)}</span>
+                                </>
+                              )}
+                              
+                              {assessmentDataCandidates[candidate.id]?.started_at && (
+                                <>
+                                  <span className="text-gray-600">Started:</span>
+                                  <span>{formatDate(assessmentDataCandidates[candidate.id]?.started_at)}</span>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        )}
                       </PopoverContent>
                     </Popover>
                   </div>

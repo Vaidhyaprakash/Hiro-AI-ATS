@@ -42,11 +42,12 @@ interface CandidatesListProps {
     updated_at: string;
     interview_score: number | null;
     interview_summary: string | null;
-  }[]
-  fetchCandidates: () => void
+  }[],
+  assessment: object
 }
 
-export function InterviewCandidatesList({ jobs, candidates, fetchCandidates }: CandidatesListProps) {
+export function InterviewCandidatesList({ jobs, assessment }: CandidatesListProps) {
+  console.log(assessment, "assessment");
   const [selectAll, setSelectAll] = useState(false)
   const [selectedCandidates, setSelectedCandidates] = useState<string[]>([])
   const [isClient, setIsClient] = useState(false)
@@ -56,10 +57,30 @@ export function InterviewCandidatesList({ jobs, candidates, fetchCandidates }: C
   const [showFeedbackModal, setShowFeedbackModal] = useState(false)
   // const job = useSelector((state: RootState) => state.jobs.jobs.find((j) => j.id === jobId))
   // const candidates = job?.candidates || []
-  
+  const [candidates, setCandidates] = useState<any[]>([])
+  const [assessmentDataCandidates, setAssessmentDataCandidates] = useState<Record<number, any>>({})
+  const fetchCandidates = async () => {
+    if (!assessment.id) return
+    console.log("assessment.id", assessment.id);
+    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/assessments/${assessment.id}/candidates`)
+    const data = await response.json()
+    console.log("data", data);
+    // Map assessment details to candidate IDs
+    const assessmentDataMap: Record<number, any> = {}
+    data?.candidates.forEach((candidate: any) => {
+      assessmentDataMap[candidate.candidate_details.id] = candidate?.assessment_details
+    })
+    console.log("assessmentDataMap", assessmentDataMap);
+    setAssessmentDataCandidates(assessmentDataMap)
+    
+    const candidatesData = data?.candidates.map((candidate: any) => candidate.candidate_details)
+    console.log("candidatesData", candidatesData);
+    setCandidates(candidatesData)
+  }
   // Only run date formatting on the client
   useEffect(() => {
     setIsClient(true)
+    fetchCandidates()
   }, [])
 
   // Initialize interview summaries from candidates data
@@ -120,7 +141,7 @@ export function InterviewCandidatesList({ jobs, candidates, fetchCandidates }: C
     }
   }
   const moveCandidateToNextStep = async (candidateId: number, status: string) => {
-   await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/candidates/${candidateId}/update-status?status=${status}`, {
+   await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/update/candidate-assessment/${assessment?.id}/${candidateId}/job/${jobs[0].id}`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -171,6 +192,7 @@ export function InterviewCandidatesList({ jobs, candidates, fetchCandidates }: C
       return ""
     }
   }
+  console.log(candidates)
 
   if (candidates?.length === 0) {
     return (
@@ -179,7 +201,7 @@ export function InterviewCandidatesList({ jobs, candidates, fetchCandidates }: C
       </div>
     )
   }
-  console.log(candidates)
+
   console.log("frontend/components/screened-candidates-list.tsx")
   return (
     <div className="overflow-x-auto">
