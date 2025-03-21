@@ -230,17 +230,6 @@ async def get_application_feedback(
         db.commit()
         db.refresh(candidate)
 
-        # Create application record
-        application = Application(
-            candidate_id=candidate.id,
-            job_role=payload.job_titile,
-            status=ApplicationStatus.APPLIED,
-            applied_date=datetime.utcnow()
-        )
-        db.add(application)
-        db.commit()
-        db.refresh(application)
-
         return {
             "candidate_id": candidate.id,
             "application_id": application.id,

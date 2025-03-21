@@ -1077,7 +1077,7 @@ if __name__ == "__main__":
 async def map_candidate_to_first_assessment(candidate_id: int, job_id: int, db: Session = Depends(get_db)):
     # Get first assessment for this job
     first_assessment = db.query(Assessment)\
-        .filter(Assessment.job_id == job_id,Assessment.type =="initial_screening")\
+        .filter(Assessment.job_id == job_id,Assessment.type !="initial_screening")\
         .order_by(Assessment.id)\
         .first()
     
@@ -1118,7 +1118,7 @@ async def update_candidate_assessment(candidate_assessment_id: int, candidate_id
 
     # Get all assessments for this job ordered by ID
     assessments = db.query(Assessment)\
-        .filter(Assessment.job_id == job_id,Assessment.type =="initial_screening")\
+        .filter(Assessment.job_id == job_id,Assessment.type !="initial_screening")\
         .order_by(Assessment.id)\
         .all()
 
@@ -1149,37 +1149,15 @@ async def update_candidate_assessment(candidate_assessment_id: int, candidate_id
 @app.get("/api/asssementa/{assessment_id}/candidates")
 async def get_candiates_based_on_assessment_id(assessment_id: int, db: Session = Depends(get_db)):
     """
-    Get all candidates and their assessment data for a specific assessment.
+    Get all candidates who have taken a specific assessment.
     """
-    candidates = db.query(Candidate, CandidateAssessment)\
-        .join(CandidateAssessment, Candidate.id == CandidateAssessment.candidate_id)\
-        .filter(CandidateAssessment.assessment_id == assessment_id)\
+    candidates = (
+        db.query(Candidate)
+        .join(CandidateAssessment)
+        .filter(CandidateAssessment.assessment_id == assessment_id)
         .all()
-    
-    result = []
-    for candidate, assessment in candidates:
-        candidate_dict = {
-            "id": candidate.id,
-            "name": candidate.name,
-            "email": candidate.email,
-            "phone": candidate.phone,
-            "location": candidate.location,
-            "status": candidate.status,
-            "assessment_status": assessment.status,
-            "assessment_id": assessment.assessment_id,
-            "candidate_assessment_id": assessment.id,
-            "score": assessment.overall_score,
-            "honesty_score": assessment.honesty_score,
-            "created_at": assessment.created_at,
-            "updated_at": assessment.updated_at,
-            "assessment_link": assessment.assessment_link,
-            "assessment_title": assessment.title,
-            "assessment_type": assessment.type,
-            "assessment_difficulty": assessment.difficulty
-        }
-        result.append(candidate_dict)
-        
-    return result
+    )
+    return candidates
 
 @app.post("/api/interviewer")
 async def create_interviewer(
