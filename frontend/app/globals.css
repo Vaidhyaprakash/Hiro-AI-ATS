@@ -122,3 +122,8 @@
 .generate-job-description-form .twigs-c-dsiuU:active:not(:disabled) {
   box-shadow: rgb(255, 255, 255) 0px 0px 0px 2px, #00584480 0px 0px 0px 4px, rgba(0, 0, 0, 0.05) 0px 1px 2px 0px !important;
 }
+/* .no-error-overlay{
+
+  display: none !important;
+  z-index: -1 !important;
+} */
