@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { 
   BarChart, Bar, LineChart, Line, PieChart, Pie, 
@@ -11,34 +12,62 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
 import { Download, Filter } from "lucide-react"
 
+interface AnalyticsData {
+  hiring_funnel: Record<string, number>;
+  time_to_hire: {
+    average_days: number;
+    trend: Array<{
+      month: string;
+      days: number;
+    }>;
+  };
+  offer_acceptance_rate: number;
+  cost_per_hire: number;
+  source_effectiveness: Record<string, number>;
+}
+
 export default function AnalysePage() {
-  const hiringFunnelData = [
-    { stage: "Applications", count: 450 },
-    { stage: "Screened", count: 280 },
-    { stage: "Assessment", count: 180 },
-    { stage: "Interview", count: 90 },
-    { stage: "Offer", count: 40 },
-    { stage: "Hired", count: 32 },
-  ]
+  const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const timeToHireData = [
-    { month: "Jan", days: 28 },
-    { month: "Feb", days: 26 },
-    { month: "Mar", days: 24 },
-    { month: "Apr", days: 25 },
-    { month: "May", days: 22 },
-    { month: "Jun", days: 20 },
-  ]
+  useEffect(() => {
+    const fetchAnalytics = async () => {
+      try {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/analytics/recruitment`);
+        if (!response.ok) throw new Error('Failed to fetch analytics data');
+        const data = await response.json();
+        setAnalyticsData(data);
+      } catch (error) {
+        console.error('Error fetching analytics:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-  const sourceEffectivenessData = [
-    { name: "LinkedIn", value: 35 },
-    { name: "Referrals", value: 25 },
-    { name: "Job Boards", value: 20 },
-    { name: "Company Website", value: 15 },
-    { name: "Agencies", value: 5 },
-  ]
+    fetchAnalytics();
+  }, []);
 
-  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8']
+  // Transform hiring funnel data for chart
+  const hiringFunnelData = analyticsData ? Object.entries(analyticsData.hiring_funnel).map(([stage, count]) => ({
+    stage: stage.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase()),
+    count: count
+  })) : [];
+
+  // Transform source effectiveness data for chart
+  const sourceEffectivenessData = analyticsData ? Object.entries(analyticsData.source_effectiveness).map(([name, value]) => ({
+    name,
+    value
+  })) : [];
+
+  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="animate-spin rounded-full h-8 w-8 border-2 border-gray-300 border-t-[#005844]"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -71,8 +100,17 @@ export default function AnalysePage() {
                 <CardTitle className="text-sm font-medium">Average Time to Hire</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">24 days</div>
-                <p className="text-xs text-muted-foreground">-3 days from last quarter</p>
+                <div className="text-2xl font-bold">{analyticsData?.time_to_hire.average_days} days</div>
+                <p className="text-xs text-muted-foreground">
+                  {analyticsData && analyticsData.time_to_hire.trend.length >= 2 ? (
+                    <>
+                      {analyticsData.time_to_hire.trend[0].days - analyticsData.time_to_hire.trend[1].days > 0 ? '+' : ''}
+                      {analyticsData.time_to_hire.trend[0].days - analyticsData.time_to_hire.trend[1].days} days from last month
+                    </>
+                  ) : (
+                    'No trend data available'
+                  )}
+                </p>
               </CardContent>
             </Card>
             <Card>
@@ -80,8 +118,8 @@ export default function AnalysePage() {
                 <CardTitle className="text-sm font-medium">Offer Acceptance Rate</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">82%</div>
-                <p className="text-xs text-muted-foreground">+5% from last quarter</p>
+                <div className="text-2xl font-bold">{analyticsData?.offer_acceptance_rate}%</div>
+                <p className="text-xs text-muted-foreground">Based on recent offers</p>
               </CardContent>
             </Card>
             <Card>
@@ -89,8 +127,8 @@ export default function AnalysePage() {
                 <CardTitle className="text-sm font-medium">Cost per Hire</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">$4,250</div>
-                <p className="text-xs text-muted-foreground">-$320 from last quarter</p>
+                <div className="text-2xl font-bold">${analyticsData?.cost_per_hire.toLocaleString()}</div>
+                <p className="text-xs text-muted-foreground">Average cost per successful hire</p>
               </CardContent>
             </Card>
           </div>
@@ -121,13 +159,61 @@ export default function AnalysePage() {
               </CardHeader>
               <CardContent className="h-80">
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={timeToHireData}>
+                  <LineChart data={analyticsData?.time_to_hire.trend}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="month" />
                     <YAxis />
                     <Tooltip />
                     <Line type="monotone" dataKey="days" stroke="#4b7a3e" strokeWidth={2} />
                   </LineChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <CardTitle>Source Effectiveness</CardTitle>
+                <CardDescription>Distribution of candidates by source</CardDescription>
+              </CardHeader>
+              <CardContent className="h-80">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={sourceEffectivenessData}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={true}
+                      outerRadius={100}
+                      fill="#8884d8"
+                      dataKey="value"
+                      label={({name, percent}) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                    >
+                      {sourceEffectivenessData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Top Performing Sources</CardTitle>
+                <CardDescription>Sources with highest candidate conversion</CardDescription>
+              </CardHeader>
+              <CardContent className="h-80">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={sourceEffectivenessData.sort((a, b) => b.value - a.value).slice(0, 5)} layout="vertical">
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis type="number" />
+                    <YAxis dataKey="name" type="category" width={100} />
+                    <Tooltip />
+                    <Bar dataKey="value" fill="#4b7a3e" radius={[0, 4, 4, 0]} />
+                  </BarChart>
                 </ResponsiveContainer>
               </CardContent>
             </Card>
@@ -163,15 +249,9 @@ export default function AnalysePage() {
             </CardHeader>
             <CardContent className="h-96">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={[
-                  { department: "Engineering", days: 32 },
-                  { department: "Marketing", days: 24 },
-                  { department: "Sales", days: 18 },
-                  { department: "Finance", days: 28 },
-                  { department: "HR", days: 22 },
-                ]}>
+                <LineChart data={analyticsData?.time_to_hire.trend}>
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="department" />
+                  <XAxis dataKey="month" />
                   <YAxis />
                   <Tooltip />
                   <Line type="monotone" dataKey="days" stroke="#4b7a3e" strokeWidth={2} />

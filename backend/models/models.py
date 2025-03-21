@@ -47,6 +47,7 @@ class Job(Base):
     job_description = Column(Text, nullable=True)
     requirements = Column(Text, nullable=True)
     company_id = Column(Integer, ForeignKey("companies.id"))
+    lead_id = Column(Integer, ForeignKey("leads.id"), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     properties = Column(JSON, nullable=True)
@@ -57,7 +58,7 @@ class Job(Base):
     assessments = relationship("Assessment", back_populates="job")
     questions = relationship("Question", back_populates="job")
     attitude_analysis = relationship("AttitudeAnalysis", back_populates="job")
-    leads = relationship("Lead", back_populates="job")
+    lead = relationship("Lead", back_populates="jobs")
 
 class Candidate(Base):
     __tablename__ = "candidates"
@@ -238,6 +239,7 @@ class AttitudeAnalysis(Base):
 
     candidate = relationship("Candidate", back_populates="attitude_analysis")
     job = relationship("Job", back_populates="attitude_analysis")
+
 class Lead(Base):
     __tablename__ = "leads"
 
@@ -248,7 +250,7 @@ class Lead(Base):
     summary = Column(Text)
     relevance_score = Column(Integer)
     job_title = Column(String)
-    job_id = Column(Integer, ForeignKey("jobs.id"))  # Reference to the job
+    job_id = Column(Integer, ForeignKey("jobs.id"), nullable=True)
     skills = Column(ARRAY(String))  # Array of skills
     location = Column(String)  # Location of the candidate
     email = Column(String, nullable=True)  # Email address if found
@@ -258,5 +260,6 @@ class Lead(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    # Relationship to Job
-    job = relationship("Job", back_populates="leads") 
+    job = relationship("Job", back_populates="leads", foreign_keys=[job_id])
+    source_job = relationship("Job", back_populates="lead", foreign_keys="[Job.lead_id]")
+    jobs = relationship("Job", back_populates="lead")

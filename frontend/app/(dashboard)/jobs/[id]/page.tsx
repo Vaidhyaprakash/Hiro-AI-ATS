@@ -38,8 +38,19 @@ interface Candidate {
   name: string;
   email: string;
   phone: string;
-  resume: string;
-  status: string;
+  location: string;
+  college: string;
+  skills: string;
+  resume_s3_url: string;
+  assessment_score: number;
+  resume_score: number;
+  resume_summary: string;
+  test_summary: string;
+  status: string | null;
+  created_at: string;
+  updated_at: string;
+  interview_summary: string | null;
+  interview_score: number | null;
 }
 
 export default function JobDetailsPage() {
@@ -102,7 +113,6 @@ export default function JobDetailsPage() {
     setHiredCandidates(hiredCandidates);
     setNewCandidates(newCandidates);
     setAssessmentCandidates(assessmentCandidates);
-    
   }, [candidates]);
 
   if (loading) {

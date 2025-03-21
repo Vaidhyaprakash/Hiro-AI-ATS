@@ -801,17 +801,21 @@ async def get_recruitment_analytics(db: Session = Depends(get_db)):
         offer_acceptance_rate = (accepted_offers / total_offers * 100) if total_offers > 0 else 0
 
         # Get source effectiveness data from leads table
-        source_counts = db.query(
-            Lead.platform,
-            func.count(Lead.id).label('count')
-        ).group_by(
-            Lead.platform
-        ).all()
+        source_counts = (
+            db.query(
+                Lead.platform,
+                func.count(Lead.id).label('count'),
+                func.count(Job.id).label('converted')
+            )
+            .outerjoin(Job, Job.lead_id == Lead.id)
+            .group_by(Lead.platform)
+            .all()
+        )
 
-        total_leads = sum(count for _, count in source_counts)
+        total_leads = sum(count for _, count, _ in source_counts)
         source_effectiveness = {
-            platform: round((count / total_leads * 100), 1) if total_leads > 0 else 0
-            for platform, count in source_counts
+            platform: round((converted / count * 100), 1) if count > 0 else 0
+            for platform, count, converted in source_counts
         }
 
         # If no leads data yet, provide some default platforms with 0%
