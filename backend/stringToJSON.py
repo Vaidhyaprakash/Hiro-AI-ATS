@@ -8,14 +8,14 @@ def jsonValidator(json_str, json_format):
 Ensure that:
 - The JSON uses proper syntax with consistent quotes.
 - All keys and string values are enclosed in double quotes.
-- Correct the syntax error key value strings like {{\"a\": \"O(1)\"}} by enclosing values in double quotes.
+- Correct the syntax error key value strings. For example if the key values are as follows:{{\"a\": \"O(1)\"}} fix them by enclosing values in double quotes.
 - Validate the entire JSON structure.
 - Check for missing closing braces and brackets.
 - Dont change text or content or object structure or object key and value strings.
 - The error is only in double quotes enclosing and a missing closing brace or bracket.
-- Strictly follow the JSON format: {json_format}
-- The answer key should be inside the question object only if the question type is mcq and should not be present in openended and coding question objects"""
-    response = ollama.chat(model="gemma3:4b", messages=[{"role": "user", "content": prompt}])
+- Strictly follow the JSON format: {json_format}."""
+
+    response = ollama.chat(model="mistral", messages=[{"role": "user", "content": prompt}])
     return response["message"]["content"]
 
 def clean_and_convert_json(model_output, json_format):
@@ -48,6 +48,10 @@ def clean_and_convert_json(model_output, json_format):
 
                 # Step 2: Clean JSON string
                 json_str = json_str.replace("\n", "")  # Remove newlines
+                json_str = json_str.replace('\\"', "")
+                json_str = json_str.replace("\\'", "")
+                json_str = json_str.replace(", }", " }")
+                json_str = json_str.replace(", ]", " ]")
                 json_str = re.sub(r'\s+', ' ', json_str)  # Remove excessive spaces
                 json_str = json_str.strip()
                 print("corrected json -> ",json_str)

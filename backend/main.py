@@ -194,6 +194,9 @@ class AnswerSubmission(BaseModel):
     answer: str
     score: float
 
+class WebhookRequest(BaseModel):
+    answers: dict
+
 @app.websocket("/ws/{candidate_id}")
 async def websocket_handler(websocket: WebSocket, candidate_id: int, db: Session = Depends(get_db)):
     return await websocket_endpoint(websocket, candidate_id, db)
@@ -353,6 +356,11 @@ async def get_jobs_for_company(
         List[JobResponse]: List of jobs with company details
     """
     return await get_company_jobs(db=db, company_id=company_id)
+
+@app.post("/api/submit-answer")
+def submit_answer(request: WebhookRequest, db: Session = Depends(get_db)):
+    print(f"Received request to submit answer: {request.answers}")
+    return {"message": "Answer submitted successfully"}
 
 @app.post("/api/create-survey")
 async def create1_survey(request: SurveyRequest, db: Session = Depends(get_db)):
