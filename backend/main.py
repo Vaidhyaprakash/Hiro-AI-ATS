@@ -728,3 +728,78 @@ async def get_leads_for_job(
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True) 
+
+@app.post("/api/update/candidate-assessment/{candidate_assessment_id}/{candidate_id}/job/{job_id}")
+async def update_candidate_assessment(candidate_assessment_id: int, candidate_id: int, job_id: int, db: Session = Depends(get_db)):
+    # Get current candidate assessment
+    candidate_assessment = db.query(CandidateAssessment).filter(CandidateAssessment.id == candidate_assessment_id).first()
+    
+    # Mark current assessment as completed
+    candidate_assessment.status = "COMPLETED"
+    db.commit()
+
+    # Get all assessments for this job ordered by ID
+    assessments = db.query(Assessment)\
+        .filter(Assessment.job_id == job_id)\
+        .order_by(Assessment.id)\
+        .all()
+
+    # Find current assessment index
+    current_index = next((i for i, a in enumerate(assessments) if a.id == candidate_assessment.assessment_id), -1)
+    
+    # Get next assessment if available
+    next_assessment = None
+    if current_index < len(assessments) - 1:
+        next_assessment = assessments[current_index + 1]
+        
+        # Create new candidate assessment for next assessment
+        new_candidate_assessment = CandidateAssessment(
+            candidate_id=candidate_id,
+            assessment_id=next_assessment.id,
+            status="NOT_STARTED"
+        )
+        db.add(new_candidate_assessment)
+        
+    db.commit()
+    
+    return {
+        "message": "Candidate assessment updated successfully",
+        "next_assessment_id": next_assessment.id if next_assessment else None
+    }
+
+
+@app.get("/api/asssementa/{assessment_id}/candidates")
+async def get_candiates_based_on_assessment_id(assessment_id: int, db: Session = Depends(get_db)):
+    """
+    Get all candidates and their assessment data for a specific assessment.
+    """
+    candidates = db.query(Candidate, CandidateAssessment)\
+        .join(CandidateAssessment, Candidate.id == CandidateAssessment.candidate_id)\
+        .filter(CandidateAssessment.assessment_id == assessment_id)\
+        .all()
+    
+    result = []
+    for candidate, assessment in candidates:
+        candidate_dict = {
+            "id": candidate.id,
+            "name": candidate.name,
+            "email": candidate.email,
+            "phone": candidate.phone,
+            "location": candidate.location,
+            "status": candidate.status,
+            "assessment_status": assessment.status,
+            "assessment_id": assessment.assessment_id,
+            "candidate_assessment_id": assessment.id,
+            "score": assessment.overall_score,
+            "honesty_score": assessment.honesty_score,
+            "created_at": assessment.created_at,
+            "updated_at": assessment.updated_at,
+            "assessment_link": assessment.assessment_link,
+            "assessment_title": assessment.title,
+            "assessment_type": assessment.type,
+            "assessment_difficulty": assessment.difficulty
+        }
+        result.append(candidate_dict)
+        
+    return result
+
