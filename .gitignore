@@ -128,7 +128,7 @@ celerybeat.pid
 *.sage.py
 
 # Environments
-.env
+#.env
 .venv
 env/
 venv/
@@ -172,7 +172,7 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
-.env
+#.env
 # Next.js
 .next/
 out/
@@ -184,4 +184,4 @@ next-env.d.ts
 package-lock.json
 
 # Backend environment variables
-backend/.env
+#backend/.env
