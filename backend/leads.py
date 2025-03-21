@@ -853,6 +853,14 @@ async def find_candidates(job_id: int, skills: List[str], location: str, db: Ses
                 "message": "Job not found. Please provide a valid job ID."
             }
 
+        # Check if smart hire has already been enabled for this job
+        if job.smart_hire_enabled:
+            print(f"⚠️ Smart hire has already been triggered for job ID: {job_id}")
+            return {
+                "status": "error",
+                "message": "Smart hire has already been triggered for this job."
+            }
+
         # Start lead generation in background
         background_tasks.add_task(
             generate_leads,
@@ -862,6 +870,10 @@ async def find_candidates(job_id: int, skills: List[str], location: str, db: Ses
             db,
             job_id
         )
+        
+        # Update smart_hire_enabled flag
+        job.smart_hire_enabled = True
+        db.commit()
         
         return {
             "status": "success",
