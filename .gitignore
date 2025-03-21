@@ -183,4 +183,5 @@ next-env.d.ts
 package-lock.json
 
 # Backend environment variables
-#backend/.env
+backend/.env
+.env
