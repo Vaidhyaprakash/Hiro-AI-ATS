@@ -154,6 +154,9 @@ export default function JobsPage() {
       console.error("Error fetching jobs:", error);
       // Fallback to sample data when fetch fails
       dispatch(setJobs(sampleJobs));
+      console.error("Error fetching jobs:", error);
+      // Fallback to sample data when fetch fails
+      dispatch(setJobs(sampleJobs));
     }
   }
 

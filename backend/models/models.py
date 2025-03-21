@@ -5,14 +5,6 @@ from datetime import datetime
 from database.database import Base
 import enum
 
-class ApplicationStatus(str, enum.Enum):
-    APPLIED = "Applied"
-    SCREENING = "Screening"
-    INTERVIEW = "Interview"
-    OFFER_EXTENDED = "Offer Extended"
-    HIRED = "Hired"
-    REJECTED = "Rejected"
-
 class CandidateStatus(str, enum.Enum):
     SOURCED = "Sourced"
     SCREENING = "Screening"
@@ -62,9 +54,9 @@ class Job(Base):
 
     company = relationship("Company", back_populates="jobs")
     candidates = relationship("Candidate", back_populates="job")
-    applications = relationship("Application", back_populates="job")
     assessments = relationship("Assessment", back_populates="job")
     questions = relationship("Question", back_populates="job")
+    attitude_analysis = relationship("AttitudeAnalysis", back_populates="job")
     leads = relationship("Lead", back_populates="job")
 
 class Candidate(Base):
@@ -90,39 +82,18 @@ class Candidate(Base):
 
     job = relationship("Job", back_populates="candidates")
     company = relationship("Company", back_populates="candidates")
-    applications = relationship("Application", back_populates="candidate")
     performance_reviews = relationship("PerformanceReview", back_populates="candidate")
     exit_predictions = relationship("ExitPrediction", back_populates="candidate")
     assessments = relationship("CandidateAssessment", back_populates="candidate")
     answers = relationship("Answer", back_populates="candidate")
-
-class Application(Base):
-    __tablename__ = "applications"
-
-    id = Column(Integer, primary_key=True, index=True)
-    candidate_id = Column(Integer, ForeignKey("candidates.id", ondelete="CASCADE"))
-    job_id = Column(Integer, ForeignKey("jobs.id", ondelete="CASCADE"))
-    job_role = Column(String(255), nullable=False, default="Engineering")
-    applied_date = Column(DateTime, default=datetime.utcnow)
-    status = Column(Enum(ApplicationStatus), nullable=False)
-    time_to_fill = Column(Interval)
-    source_id = Column(Integer, ForeignKey("sources.id"))
-
-    candidate = relationship("Candidate", back_populates="applications")
-    job = relationship("Job", back_populates="applications")
-    source = relationship("Source", back_populates="applications")
-    interviews = relationship("Interview", back_populates="application")
-    offers = relationship("Offer", back_populates="application")
-
-    __table_args__ = (
-        UniqueConstraint('candidate_id', 'job_id', name='unique_application'),
-    )
+    attitude_analysis = relationship("AttitudeAnalysis", back_populates="candidate")
+    interviews = relationship("Interview", back_populates="candidate")
 
 class Interview(Base):
     __tablename__ = "interviews"
 
     id = Column(Integer, primary_key=True, index=True)
-    application_id = Column(Integer, ForeignKey("applications.id", ondelete="CASCADE"))
+    candidate_id = Column(Integer, ForeignKey("candidates.id", ondelete="CASCADE"))
     interviewer_id = Column(Integer, ForeignKey("interviewers.id"))
     interview_date = Column(DateTime, default=datetime.utcnow)
     feedback = Column(Text)
@@ -130,18 +101,8 @@ class Interview(Base):
     attitude_score = Column(Float)
     contribution_score = Column(Float)
 
-    application = relationship("Application", back_populates="interviews")
+    candidate = relationship("Candidate", back_populates="interviews")
     interviewer = relationship("Interviewer", back_populates="interviews")
-
-class Offer(Base):
-    __tablename__ = "offers"
-
-    id = Column(Integer, primary_key=True, index=True)
-    application_id = Column(Integer, ForeignKey("applications.id", ondelete="CASCADE"))
-    offer_date = Column(DateTime, default=datetime.utcnow)
-    accepted = Column(Boolean, default=False)
-
-    application = relationship("Application", back_populates="offers")
 
 class PerformanceReview(Base):
     __tablename__ = "performance_reviews"
@@ -170,8 +131,6 @@ class Source(Base):
     name = Column(String(255), nullable=False)
     type = Column(Enum(SourceType), nullable=False)
     location = Column(String(255))
-
-    applications = relationship("Application", back_populates="source")
 
 class ExitPrediction(Base):
     __tablename__ = "exit_predictions"
@@ -226,7 +185,6 @@ class CandidateAssessment(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
-    # Relationships
     candidate = relationship("Candidate", back_populates="assessments")
     assessment = relationship("Assessment", back_populates="candidate_assessments")
     answers = relationship("Answer", back_populates="candidate_assessment")
@@ -243,7 +201,6 @@ class Question(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
-    # Relationships
     job = relationship("Job", back_populates="questions")
     assessment = relationship("Assessment", back_populates="questions")
     answers = relationship("Answer", back_populates="question")
@@ -261,11 +218,26 @@ class Answer(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
-    # Relationships
     question = relationship("Question", back_populates="answers")
     candidate = relationship("Candidate", back_populates="answers")
     candidate_assessment = relationship("CandidateAssessment", back_populates="answers")
 
+class AttitudeAnalysis(Base):
+    __tablename__ = "attitude_analysis"
+
+    id = Column(Integer, primary_key=True, index=True)
+    candidate_id = Column(Integer, ForeignKey("candidates.id"))
+    job_id = Column(Integer, ForeignKey("jobs.id"))
+    culture_fit_score = Column(Float)
+    confidence_score = Column(Float)
+    positivity_score = Column(Float)
+    enthusiasm_score = Column(Float)
+    calmness_score = Column(Float)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    candidate = relationship("Candidate", back_populates="attitude_analysis")
+    job = relationship("Job", back_populates="attitude_analysis")
 class Lead(Base):
     __tablename__ = "leads"
 

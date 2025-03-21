@@ -5,6 +5,8 @@ from questionGenerator import generate_questions
 from models.models import Assessment, Question, CandidateAssessment
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
+from models.models import Question
+from datetime import datetime
 
 def create_survey(survey_name: str):
     url = "https://api.salesparrow.com/v3/surveys"

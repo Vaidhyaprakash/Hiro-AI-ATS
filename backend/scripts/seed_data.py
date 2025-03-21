@@ -6,13 +6,45 @@ from datetime import datetime, timedelta
 import random
 from database.database import SessionLocal, engine
 from models.models import (
-    Company, Job, Candidate, Application, Interview, Offer,
+    Company, Job, Candidate, Interview, 
     PerformanceReview, Interviewer, Source, ExitPrediction,
-    ApplicationStatus, SourceType, Assessment, CandidateStatus
+    SourceType, Assessment, CandidateStatus,
+    AssessmentStatus, QuestionType, CandidateAssessment, Question,
+    Answer, AttitudeAnalysis, Lead
 )
+from sqlalchemy import text
+
+def clear_data():
+    db = SessionLocal()
+    try:
+        # Delete data in reverse order of dependencies
+        db.execute(text("DELETE FROM attitude_analysis"))
+        db.execute(text("DELETE FROM answers"))
+        db.execute(text("DELETE FROM questions"))
+        db.execute(text("DELETE FROM candidate_assessments"))
+        db.execute(text("DELETE FROM exit_predictions"))
+        db.execute(text("DELETE FROM performance_reviews"))
+        db.execute(text("DELETE FROM interviews"))
+        db.execute(text("DELETE FROM leads"))
+        db.execute(text("DELETE FROM candidates"))
+        db.execute(text("DELETE FROM interviewers"))
+        db.execute(text("DELETE FROM sources"))
+        db.execute(text("DELETE FROM assessments"))
+        db.execute(text("DELETE FROM jobs"))
+        db.execute(text("DELETE FROM companies"))
+        db.commit()
+    except Exception as e:
+        print(f"Error clearing data: {e}")
+        db.rollback()
+    finally:
+        db.close()
 
 def seed_data():
     db = SessionLocal()
+    
+    # Clear existing data first
+    clear_data()
+    
     try:
         # Seed Companies
         companies = []
@@ -50,6 +82,7 @@ def seed_data():
         db.commit()
 
         # Seed Assessments
+        assessments = []
         assessment_types = ["Technical", "Coding", "System Design", "Problem Solving", "Behavioral"]
         for i in range(10):
             assessment = Assessment(
@@ -64,6 +97,7 @@ def seed_data():
                 title=f"{roles[i]} Assessment"
             )
             db.add(assessment)
+            assessments.append(assessment)
         db.commit()
 
         # Seed Sources
@@ -109,67 +143,47 @@ def seed_data():
                 job_id=jobs[i].id,
                 company_id=companies[i].id,
                 resume_s3_url=f"https://s3.amazonaws.com/resumes/candidate{i+1}.pdf",
-                assessment_score=random.uniform(60.0, 100.0),
-                resume_score=random.uniform(70.0, 100.0),
+                assessment_score=random.uniform(0.6, 1.0),
+                resume_score=random.uniform(0.7, 1.0),
                 resume_summary=f"Experienced {roles[i]} with strong technical skills and proven track record in software development.",
                 test_summary=f"Completed technical assessment with {random.randint(70, 100)}% accuracy. Strong problem-solving skills demonstrated.",
-                status=random.choice(list(CandidateStatus))
+                status=CandidateStatus.SOURCED
             )
             db.add(candidate)
             candidates.append(candidate)
         db.commit()
 
-        # Seed Applications
-        applications = []
-        for i in range(10):
-            application = Application(
-                candidate_id=candidates[i].id,
-                job_id=jobs[i].id,
-                job_role=jobs[i].title,
-                status=random.choice(list(ApplicationStatus)),
-                source_id=sources[i].id,
-                time_to_fill=timedelta(days=random.randint(10, 30))
-            )
-            db.add(application)
-            applications.append(application)
-        db.commit()
-
         # Seed Interviews
+        interviews = []
         for i in range(10):
             interview = Interview(
-                application_id=applications[i].id,
+                candidate_id=candidates[i].id,
                 interviewer_id=interviewers[i].id,
                 interview_date=datetime.utcnow() - timedelta(days=random.randint(1, 30)),
                 feedback="Good technical skills and cultural fit",
-                culture_fit_score=random.uniform(3.5, 5.0),
-                attitude_score=random.uniform(3.5, 5.0),
-                contribution_score=random.uniform(3.5, 5.0)
+                culture_fit_score=random.uniform(0.7, 1.0),
+                attitude_score=random.uniform(0.7, 1.0),
+                contribution_score=random.uniform(0.7, 1.0)
             )
             db.add(interview)
-        db.commit()
-
-        # Seed Offers
-        for i in range(10):
-            offer = Offer(
-                application_id=applications[i].id,
-                offer_date=datetime.utcnow() - timedelta(days=random.randint(1, 15)),
-                accepted=random.choice([True, False])
-            )
-            db.add(offer)
+            interviews.append(interview)
         db.commit()
 
         # Seed Performance Reviews
+        performance_reviews = []
         for i in range(10):
             review = PerformanceReview(
                 candidate_id=candidates[i].id,
                 review_date=datetime.utcnow() - timedelta(days=random.randint(30, 90)),
-                performance_score=random.uniform(3.0, 5.0),
+                performance_score=random.uniform(0.6, 1.0),
                 expectation_delivery_timeline=timedelta(days=random.randint(30, 90))
             )
             db.add(review)
+            performance_reviews.append(review)
         db.commit()
 
         # Seed Exit Predictions
+        exit_predictions = []
         for i in range(10):
             prediction = ExitPrediction(
                 candidate_id=candidates[i].id,
@@ -178,6 +192,112 @@ def seed_data():
                 warning_signs="High workload, Limited growth opportunities"
             )
             db.add(prediction)
+            exit_predictions.append(prediction)
+        db.commit()
+
+        # Seed CandidateAssessments
+        candidate_assessments = []
+        for i in range(10):
+            candidate_assessment = CandidateAssessment(
+                candidate_id=candidates[i].id,
+                assessment_id=assessments[i].id,
+                status=random.choice(list(AssessmentStatus)),
+                honesty_score=random.uniform(0.8, 1.0),
+                overall_score=random.uniform(0.6, 1.0),
+                properties={
+                    "time_taken": random.randint(20, 90),
+                    "attempts": random.randint(1, 3)
+                }
+            )
+            db.add(candidate_assessment)
+            candidate_assessments.append(candidate_assessment)
+        db.commit()
+
+        # Seed Questions
+        questions = []
+        question_texts = [
+            "Implement a binary search algorithm in your preferred programming language.",
+            "Design a scalable microservices architecture for an e-commerce platform.",
+            "Explain the SOLID principles and provide examples for each.",
+            "Write a function to detect palindromes with optimal time complexity.",
+            "Describe your experience with agile methodologies and how you've implemented them.",
+            "Implement a solution for the traveling salesman problem.",
+            "Design a distributed caching system.",
+            "Explain the differences between REST and GraphQL.",
+            "Write a function to balance a binary search tree.",
+            "Describe how you would design a real-time chat application."
+        ]
+        
+        for i in range(10):
+            for j in range(5):  # 5 questions per assessment
+                question = Question(
+                    type=random.choice(list(QuestionType)),
+                    job_id=jobs[i].id,
+                    assessment_id=assessments[i].id,
+                    txt=question_texts[random.randint(0, len(question_texts)-1)],
+                    properties={
+                        "time_limit": random.randint(5, 30),
+                        "points": random.randint(10, 20)
+                    }
+                )
+                db.add(question)
+                questions.append(question)
+        db.commit()
+
+        # Seed Answers
+        for i in range(10):
+            for j in range(5):  # 5 answers per candidate
+                question_idx = i * 5 + j
+                answer = Answer(
+                    question_id=questions[question_idx].id,
+                    candidate_id=candidates[i].id,
+                    candidate_assessment_id=candidate_assessments[i].id,
+                    score=random.uniform(0.6, 1.0),
+                    answer="Sample answer to the technical question...",
+                    properties={
+                        "time_taken": random.randint(2, 25),
+                        "language": random.choice(["Python", "Java", "JavaScript"])
+                    }
+                )
+                db.add(answer)
+        db.commit()
+
+        # Seed AttitudeAnalysis
+        for i in range(10):
+            attitude_analysis = AttitudeAnalysis(
+                candidate_id=candidates[i].id,
+                job_id=jobs[i].id,
+                culture_fit_score=random.uniform(0.6, 1.0),
+                confidence_score=random.uniform(0.6, 1.0),
+                positivity_score=random.uniform(0.6, 1.0),
+                enthusiasm_score=random.uniform(0.6, 1.0),
+                calmness_score=random.uniform(0.6, 1.0)
+            )
+            db.add(attitude_analysis)
+        db.commit()
+
+        # Add Leads section
+        platforms = ["Reddit", "LinkedIn", "Twitter", "GitHub"]
+        subreddits = ["programming", "cscareerquestions", "developerjobs", "techcareers"]
+        lead_statuses = ["NEW", "CONTACTED", "RESPONDED", "REJECTED"]
+        
+        for i in range(10):
+            lead = Lead(
+                username=f"techie_{i+1}",
+                platform=random.choice(platforms),
+                profile_url=f"https://platform.com/users/techie_{i+1}",
+                summary=f"Experienced {roles[i]} with {random.randint(3, 10)} years of experience in software development.",
+                relevance_score=random.randint(70, 100),
+                job_title=roles[i],
+                job_id=jobs[i].id,
+                skills=["Python", "Java", "SQL", "AWS", "Docker"][0:random.randint(2, 5)],
+                location=random.choice(["San Francisco, CA", "New York, NY", "Austin, TX", "Seattle, WA"]),
+                email=f"techie_{i+1}@example.com",
+                contact_info=f"Twitter: @techie_{i+1}",
+                subreddit=random.choice(subreddits),
+                status=random.choice(lead_statuses)
+            )
+            db.add(lead)
         db.commit()
 
     finally:
