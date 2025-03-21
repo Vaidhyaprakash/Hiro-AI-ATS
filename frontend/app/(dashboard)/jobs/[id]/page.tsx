@@ -367,7 +367,7 @@ export default function JobDetailsPage() {
               <div className="border-t pt-4 flex justify-between">
                 <div className="mr-xl">
                   <h3 className="font-medium">Status</h3>
-                  <p>{job.properties.status}</p>
+                  <p>{job.properties?.status}</p>
                 </div>
                 <div>
                   <h3 className="font-medium">Open</h3>

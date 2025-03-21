@@ -37,7 +37,7 @@ import time
 from dotenv import load_dotenv
 from ngrok import update_ngrok_url
 from handleWorkflow import handleWorkflow
-from leads import find_candidates
+from leads import find_candidates, get_job_leads
 
 # Set environment variable to disable the new security behavior
 os.environ['TORCH_FORCE_WEIGHTS_ONLY'] = '0'
@@ -668,6 +668,16 @@ async def generate_candidate_leads(
         db=db,
         background_tasks=background_tasks
     )
+
+@app.get("/api/jobs/{job_id}/leads")
+async def get_leads_for_job(
+    job_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    Get all leads for a specific job if smart hire is enabled.
+    """
+    return await get_job_leads(job_id=job_id, db=db)
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True) 

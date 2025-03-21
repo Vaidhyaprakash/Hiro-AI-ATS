@@ -241,7 +241,7 @@ export default function JobsPage() {
                     <span
                       className={`rounded-full px-2 py-1 text-xs font-medium ${job.status === "Open" ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"}`}
                     >
-                      {job.properties.status}
+                      {job.properties?.status}
                     </span>
                   </TableCell>
                   <TableCell>
