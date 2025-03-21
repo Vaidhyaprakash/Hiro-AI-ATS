@@ -134,12 +134,25 @@ export default function JobsPage() {
 
   const fetchJobs = async () => {
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/companies/9/jobs`)
-      const data = await response.json()
-      dispatch(setJobs(data))
+      // Check if the API URL is defined
+      if (!process.env.NEXT_PUBLIC_API_URL) {
+        console.warn("API URL is not defined, using sample data instead");
+        dispatch(setJobs(sampleJobs));
+        return;
+      }
+      
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/companies/9/jobs`);
+      
+      if (!response.ok) {
+        throw new Error(`API responded with status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      dispatch(setJobs(data));
     } catch (error) {
-      console.error("Error fetching jobs:", error)
-      dispatch(setJobs(sampleJobs))
+      console.error("Error fetching jobs:", error);
+      // Fallback to sample data when fetch fails
+      dispatch(setJobs(sampleJobs));
     }
   }
 
@@ -198,7 +211,7 @@ export default function JobsPage() {
                   <TableCell>
                     <div className="flex items-center gap-1 justify-center">
                       <div className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-xs text-primary">
-                        {job.candidate_count}
+                        {job.candidates || job.candidate_count || 0}
                       </div>
                     </div>
                   </TableCell>
@@ -208,15 +221,15 @@ export default function JobsPage() {
                         <a href={`/jobs/${job.id}`}>{job.title}</a>
                       </div>
                       <div className="text-sm text-muted-foreground">
-                        {job.properties.department} - {job.properties.location}
+                        {job.department || (job.properties && job.properties.department)} - {job.location || (job.properties && job.properties.location)}
                       </div>
                     </div>
                   </TableCell>
-                  <TableCell>{job.properties.hiringLead}</TableCell>
+                  <TableCell>{job.hiringLead || (job.properties && job.properties.hiringLead)}</TableCell>
                   <TableCell>
                     <div>
                       <div className="text-sm text-muted-foreground">
-                        {formatTimeAgo(job.createdOn)}
+                        {formatTimeAgo(job.created_at || job.createdOn)}
                       </div>
                     </div>
                   </TableCell>

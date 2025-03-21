@@ -2,10 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { BarChart3, Users, Settings, Mail, UserPlus, ChevronDown } from "lucide-react";
+import { BarChart3, Users, Settings, Mail, UserPlus, ChevronDown, Locate } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { CandidatesList } from "@/components/candidates-list";
+import { CandidatesList } from "@/components/candidates/candidates-list";
+import { ScreenedCandidatesList } from "@/components/candidates/screened-candidates-list";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface JobDetails {
   id: number;
@@ -43,6 +45,12 @@ export default function JobDetailsPage() {
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [screenedCandidates, setScreenedCandidates] = useState<Candidate[]>([]);
+  const [interviewCandidates, setInterviewCandidates] = useState<Candidate[]>([]);
+  const [hiredCandidates, setHiredCandidates] = useState<Candidate[]>([]);
+  const [newCandidates, setNewCandidates] = useState<Candidate[]>([]);
+  const [assessmentCandidates, setAssessmentCandidates] = useState<Candidate[]>([]);
+  const [activeTab, setActiveTab] = useState("new");
 
   useEffect(() => {
     // Ensure we're on the client side and have a valid ID
@@ -79,6 +87,20 @@ export default function JobDetailsPage() {
     fetchJobDetails();
   }, [params?.id, router]);
 
+  useEffect(() => {
+    const screenedCandidates = candidates.filter(candidate => candidate.status === 'Screening');
+    const interviewCandidates = candidates.filter(candidate => candidate.status === 'Interview');
+    const hiredCandidates = candidates.filter(candidate => candidate.status === 'Hired');
+    const newCandidates = candidates.filter(candidate => candidate.status === "Sourced");
+    const assessmentCandidates = candidates.filter(candidate => candidate.status === 'Assessment');
+    setScreenedCandidates(screenedCandidates);
+    setInterviewCandidates(interviewCandidates);
+    setHiredCandidates(hiredCandidates);
+    setNewCandidates(newCandidates);
+    setAssessmentCandidates(assessmentCandidates);
+    
+  }, [candidates]);
+
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -109,15 +131,36 @@ export default function JobDetailsPage() {
     alert(`Job Description: ${job.job_description}`);
   };
 
-  const handleAddCandidate = () => {
-    // This would be implemented with your actual candidate creation logic
-    alert("Add candidate functionality would be implemented here");
+  const handleStartScreening = () => {
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/resume/analyze/${params.id}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        job_id: params.id,
+      }),
+    })
+      .then(response => response.json())
+      .then(data => {
+        console.log(data);
+      }).then(() => {
+        fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/jobs/${params.id}/candidates`)
+        .then(response => response.json())
+          .then(data => {
+          setCandidates(data);
+          console.log(data);
+        })
+        .catch(error => console.error('Error fetching candidates:', error));
+      })
+      .catch(error => console.error('Error fetching candidates:', error));
   };
   const handleCandidatesFetch = () => {
     fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/jobs/${params.id}/candidates`)
       .then(response => response.json())
       .then(data => {
         console.log(data);
+        setCandidates(data);
       })
       .catch(error => console.error('Error fetching candidates:', error));
   };
@@ -157,31 +200,41 @@ export default function JobDetailsPage() {
               </Button>
             </div>
 
-            <Tabs defaultValue="new" className="w-full">
+            <Tabs 
+              defaultValue="new" 
+              className="w-full"
+              onValueChange={(value) => setActiveTab(value)}
+            >
               <TabsList className="bg-transparent border-b w-full justify-start h-auto p-0 mb-6">
                 <TabsTrigger
                   value="new"
                   className="data-[state=active]:border-b-2 data-[state=active]:border-[#4b7a3e] data-[state=active]:text-[#4b7a3e] rounded-none bg-transparent h-10 px-4"
                 >
-                  New ({job.candidate_count || 0})
+                  New ({newCandidates.length ||0})
                 </TabsTrigger>
                 <TabsTrigger
                   value="screen"
                   className="data-[state=active]:border-b-2 data-[state=active]:border-[#4b7a3e] data-[state=active]:text-[#4b7a3e] rounded-none bg-transparent h-10 px-4"
                 >
-                  Schedule...Screen (0)
+                  Screened ({screenedCandidates.length || 0 })
+                </TabsTrigger>
+                <TabsTrigger
+                  value="assessment"
+                  className="data-[state=active]:border-b-2 data-[state=active]:border-[#4b7a3e] data-[state=active]:text-[#4b7a3e] rounded-none bg-transparent h-10 px-4"
+                >
+                  Assessment ({assessmentCandidates.length || 0})
                 </TabsTrigger>
                 <TabsTrigger
                   value="interview"
                   className="data-[state=active]:border-b-2 data-[state=active]:border-[#4b7a3e] data-[state=active]:text-[#4b7a3e] rounded-none bg-transparent h-10 px-4"
                 >
-                  Schedule Interview (0)
+                  Interview ({interviewCandidates.length || 0})
                 </TabsTrigger>
                 <TabsTrigger
                   value="hired"
                   className="data-[state=active]:border-b-2 data-[state=active]:border-[#4b7a3e] data-[state=active]:text-[#4b7a3e] rounded-none bg-transparent h-10 px-4"
                 >
-                  Hired (0)
+                  Hired ({hiredCandidates.length || 0})
                 </TabsTrigger>
                 <div className="ml-auto flex items-center">
                   <Button variant="ghost" size="sm" className="flex items-center gap-1">
@@ -191,58 +244,84 @@ export default function JobDetailsPage() {
                 </div>
               </TabsList>
 
-              <TabsContent value="new" className="mt-0">
-                <div className="bg-white rounded-lg shadow-sm p-6">
-                  <div className="flex justify-between items-center mb-6">
-                    <h2 className="text-2xl font-semibold text-[#4b7a3e]">New Candidates</h2>
-                    <div className="flex items-center gap-2">
-                      <Button variant="outline" size="icon" className="rounded-full">
-                        <Settings className="h-4 w-4" />
-                      </Button>
-                      <Button variant="outline" size="icon" className="rounded-full">
-                        <Mail className="h-4 w-4" />
-                      </Button>
-                      <Button className="bg-white text-black border hover:bg-gray-100" onClick={handleAddCandidate}>
-                        <UserPlus className="h-4 w-4 mr-2" />
-                        New Candidate
-                      </Button>
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={activeTab}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <TabsContent value="new" className="mt-0">
+                    <div className="bg-white rounded-lg shadow-sm p-6">
+                      <div className="flex justify-between items-center mb-6">
+                        <h2 className="text-2xl font-semibold text-[#4b7a3e]">New Candidates</h2>
+                        <div className="flex items-center gap-2">
+                          <Button variant="outline" size="icon" className="rounded-full">
+                            <Settings className="h-4 w-4" />
+                          </Button>
+                          <Button variant="outline" size="icon" className="rounded-full">
+                            <Mail className="h-4 w-4" />
+                          </Button>
+                          <Button className="bg-white text-black border hover:bg-gray-100" onClick={handleStartScreening}>
+                            <UserPlus className="h-4 w-4 mr-2" />
+                            Start Screening
+                          </Button>
+                        </div>
+                      </div>
+
+                      <CandidatesList jobs={[job]} candidates={newCandidates} />
                     </div>
-                  </div>
+                  </TabsContent>
 
-                  <CandidatesList jobs={[job]} candidates={candidates} />
-                </div>
-              </TabsContent>
+                  <TabsContent value="screen" className="mt-0">
+                    <div className="bg-white rounded-lg shadow-sm p-6">
+                      <div className="flex justify-between items-center mb-6">
+                        <h2 className="text-2xl font-semibold text-[#4b7a3e]">Screened Candidates</h2>
+                        <div className="flex items-center gap-2">
+                          <Button variant="outline" size="icon" className="rounded-full">
+                            <Settings className="h-4 w-4" />
+                          </Button>
+                          <Button variant="outline" size="icon" className="rounded-full">
+                            <Mail className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
 
-              <TabsContent value="screen" className="mt-0">
-                <div className="bg-white rounded-lg shadow-sm p-6">
-                  <div className="text-center py-12">
-                    <h3 className="text-lg font-medium">No Candidates in Screen Stage</h3>
-                    <p className="text-muted-foreground mt-2">
-                      Move candidates to this stage to schedule screening calls.
-                    </p>
-                  </div>
-                </div>
-              </TabsContent>
+                      <ScreenedCandidatesList jobs={[job]} candidates={screenedCandidates} fetchCandidates={handleCandidatesFetch}/>
+                    </div>
+                  </TabsContent>
 
-              <TabsContent value="interview" className="mt-0">
-                <div className="bg-white rounded-lg shadow-sm p-6">
-                  <div className="text-center py-12">
-                    <h3 className="text-lg font-medium">No Candidates in Interview Stage</h3>
-                    <p className="text-muted-foreground mt-2">Move candidates to this stage to schedule interviews.</p>
-                  </div>
-                </div>
-              </TabsContent>
+                  <TabsContent value="assessment" className="mt-0">
+                    <div className="bg-white rounded-lg shadow-sm p-6">
+                      <div className="text-center py-12">
+                        <h3 className="text-lg font-medium">No Candidates in Assessment Stage</h3>
+                        <p className="text-muted-foreground mt-2">Move candidates to this stage to begin assessments.</p>
+                      </div>
+                    </div>
+                  </TabsContent>
 
-              <TabsContent value="hired" className="mt-0">
-                <div className="bg-white rounded-lg shadow-sm p-6">
-                  <div className="text-center py-12">
-                    <h3 className="text-lg font-medium">No Hired Candidates</h3>
-                    <p className="text-muted-foreground mt-2">
-                      Move candidates to this stage when they accept an offer.
-                    </p>
-                  </div>
-                </div>
-              </TabsContent>
+                  <TabsContent value="interview" className="mt-0">
+                    <div className="bg-white rounded-lg shadow-sm p-6">
+                      <div className="text-center py-12">
+                        <h3 className="text-lg font-medium">No Candidates in Interview Stage</h3>
+                        <p className="text-muted-foreground mt-2">Move candidates to this stage to schedule interviews.</p>
+                      </div>
+                    </div>
+                  </TabsContent>
+
+                  <TabsContent value="hired" className="mt-0">
+                    <div className="bg-white rounded-lg shadow-sm p-6">
+                      <div className="text-center py-12">
+                        <h3 className="text-lg font-medium">No Hired Candidates</h3>
+                        <p className="text-muted-foreground mt-2">
+                          Move candidates to this stage when they accept an offer.
+                        </p>
+                      </div>
+                    </div>
+                  </TabsContent>
+                </motion.div>
+              </AnimatePresence>
             </Tabs>
           </div>
 
@@ -257,8 +336,8 @@ export default function JobDetailsPage() {
                   <p>{job.properties.hiringLead}</p>
                 </div>
               </div>
-              <div className="border-t pt-4">
-                <div className="mb-2">
+              <div className="border-t pt-4 flex justify-between">
+                <div className="mr-xl">
                   <h3 className="font-medium">Status</h3>
                   <p>{job.properties.status}</p>
                 </div>

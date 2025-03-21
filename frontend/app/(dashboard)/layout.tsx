@@ -4,6 +4,7 @@ import type React from "react"
 
 import { usePathname } from "next/navigation"
 import { LayoutDashboard, Briefcase, Users, User, LogOut } from "lucide-react"
+import { motion, AnimatePresence } from "framer-motion"
 import {
   Sidebar,
   SidebarContent,
@@ -85,7 +86,18 @@ export default function DashboardLayout({
               </h2>
             </div>
           </header>
-          <main className="p-4 bg-white">{children}</main>
+          <AnimatePresence mode="wait">
+            <motion.main
+              key={pathname}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.3 }}
+              className="p-4 bg-white"
+            >
+              {children}
+            </motion.main>
+          </AnimatePresence>
         </div>
       </div>
     </SidebarProvider>

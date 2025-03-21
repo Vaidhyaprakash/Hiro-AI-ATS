@@ -19,6 +19,12 @@ class CandidateStatus(str, enum.Enum):
     INTERVIEW_1 = "Interview 1"
     INTERVIEW_2 = "Interview 2"
     HIRED = "Hired"
+    ASSESSMENT = "Assessment"
+    OFFER_EXTENDED = "Offer Extended"
+    REJECTED = "Rejected"
+    INTERVIEW = "Interview"
+    TECHNICAL_ROUND = "Technical Round"
+    HR_ROUND = "HR Round"
 
 class SourceType(str, enum.Enum):
     COLLEGE = "College"
