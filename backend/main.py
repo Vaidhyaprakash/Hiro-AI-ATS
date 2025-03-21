@@ -707,12 +707,12 @@ async def submit_answer(submission: AnswerSubmission, db: Session = Depends(get_
                 assessment_id=submission.assessmentId,
                 honesty_score=100,  # Default value
                 overall_score=0,    # Will be updated later
-                status="COMPLETED"
+                status= AssessmentStatus.COMPLETED
             )
             db.add(candidate_assessment)
         else:
             # Update existing assessment status to completed
-            candidate_assessment.status = "COMPLETED"
+            candidate_assessment.status = AssessmentStatus.COMPLETED
             candidate_assessment.overall_score = submission.score
             
         db.commit()
@@ -1070,7 +1070,7 @@ if __name__ == "__main__":
 async def map_candidate_to_first_assessment(candidate_id: int, job_id: int, db: Session = Depends(get_db)):
     # Get first assessment for this job
     first_assessment = db.query(Assessment)\
-        .filter(Assessment.job_id == job_id)\
+        .filter(Assessment.job_id == job_id,Assessment.type =="initial_screening")\
         .order_by(Assessment.id)\
         .first()
     
@@ -1106,12 +1106,12 @@ async def update_candidate_assessment(candidate_assessment_id: int, candidate_id
     candidate_assessment = db.query(CandidateAssessment).filter(CandidateAssessment.id == candidate_assessment_id).first()
     
     # Mark current assessment as completed
-    candidate_assessment.status = "COMPLETED"
+    candidate_assessment.status = AssessmentStatus.COMPLETED
     db.commit()
 
     # Get all assessments for this job ordered by ID
     assessments = db.query(Assessment)\
-        .filter(Assessment.job_id == job_id)\
+        .filter(Assessment.job_id == job_id,Assessment.type =="initial_screening")\
         .order_by(Assessment.id)\
         .all()
 
