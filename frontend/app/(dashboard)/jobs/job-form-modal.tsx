@@ -9,9 +9,9 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { X } from "lucide-react"
+import { ArrowLeftIcon, X } from "lucide-react"
 import { Flex, Stepper, StepperItem, toast, Dialog, DialogHeader, DialogTitle, DialogDescription, DialogBody, DialogFooter, DialogClose, DialogTrigger, DialogContent, FormLabel, IconButton, Box, Button as TwigsButton, Textarea as TwigsTextarea } from "@sparrowengg/twigs-react";
-import { Flex, Stepper, StepperItem, toast, Dialog, DialogHeader, DialogTitle, DialogDescription, DialogBody, DialogFooter, DialogClose, DialogTrigger, DialogContent, FormLabel, IconButton, Box, Button as TwigsButton, Textarea as TwigsTextarea } from "@sparrowengg/twigs-react";
+
 import { AssessmentComponent } from "./assessment-component"
 import { CloseIcon } from '@sparrowengg/twigs-react-icons'
 import { motion, AnimatePresence } from "framer-motion";
@@ -41,7 +41,7 @@ function LeadsList({ leads }: { leads: Lead[] }) {
   const [selectAll, setSelectAll] = useState(false)
   const [selectedLeads, setSelectedLeads] = useState<string[]>([])
   const [isClient, setIsClient] = useState(false)
-
+  console.log(leads);
   useEffect(() => {
     setIsClient(true)
   }, [])
@@ -79,7 +79,7 @@ function LeadsList({ leads }: { leads: Lead[] }) {
 
   if (leads?.length === 0) {
     return (
-      <div className="text-center py-8">
+      <div className="text-center">
         <p className="text-muted-foreground">No leads found yet. They will appear here once the smart hire process finds potential candidates.</p>
       </div>
     )
@@ -173,6 +173,7 @@ export function JobFormModal({ isOpen, onClose }: JobFormModalProps) {
     job_qualifications: "",
     job_salary: ""
   });
+  const [aiLoading, setAiLoading] = useState(false);
   const [isSmartHiring, setIsSmartHiring] = useState(false);
   const [jobId, setJobId] = useState<number | null>(null);
   const [leads, setLeads] = useState<Lead[]>([])
@@ -271,7 +272,7 @@ export function JobFormModal({ isOpen, onClose }: JobFormModalProps) {
   const steps = [
     { id: 1, name: "JD" },
     { id: 2, name: "Assessment" },
-    { id: 3, name: "Done" }
+    { id: 3, name: "Share" }
   ]
 
   // Handle stepper navigation
@@ -287,6 +288,7 @@ export function JobFormModal({ isOpen, onClose }: JobFormModalProps) {
   const handleAiSubmit = async () => {
     // Here you would typically make an API call to an AI service
     try {
+      setAiLoading(true)
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/job_description/generate`, {
         method: 'POST',
         headers: {
@@ -313,6 +315,7 @@ export function JobFormModal({ isOpen, onClose }: JobFormModalProps) {
       }));
       
       setAiDialogOpen(false);
+      setAiLoading(false)
     } catch (error) {
       console.error('Error generating job description:', error);
       toast({
@@ -426,7 +429,12 @@ export function JobFormModal({ isOpen, onClose }: JobFormModalProps) {
       <div className="flex h-screen flex-col">
         {/* Header */}
         <div className="flex items-center justify-between border-b px-6 py-4">
-          <h2 className="text-xl font-bold">Create New Job</h2>
+          <div className="flex items-center gap-2">
+          <Button variant="ghost" size="icon" onClick={onClose} className="text-white hover:bg-gray-200">
+            <ArrowLeftIcon color="#005844" />
+          </Button>
+          <h2 className="text-xl font-bold">New Job</h2>
+          </div>
           {/* Steps Navigation */}
           <div>
             <div className="max-w-3xl mx-auto job-stepper-container">
@@ -468,9 +476,15 @@ export function JobFormModal({ isOpen, onClose }: JobFormModalProps) {
               </Stepper>
             </div>
           </div>
-          <Button variant="ghost" size="icon" onClick={onClose} className="text-white hover:bg-gray-800">
-            <X className="h-5 w-5" />
-          </Button>
+          <Button
+                  
+                type="submit"
+                form={step === 1 ? "job-form" : undefined}
+                onClick={step > 1 ? handleSubmit : undefined}
+                className=""
+              >
+                {step === 2 ? "Save Job" : "Next"}
+              </Button>
         </div>
 
         
@@ -681,6 +695,8 @@ export function JobFormModal({ isOpen, onClose }: JobFormModalProps) {
                                   css={{
                                     backgroundColor: '#005844',
                                   }}
+                                  disabled={aiLoading}
+                                  isLoading={aiLoading}
                                 >
                                   Generate & Apply
                                 </TwigsButton>
@@ -863,7 +879,7 @@ export function JobFormModal({ isOpen, onClose }: JobFormModalProps) {
         </div>
 
         {/* Footer */}
-        <div className="border-t p-4">
+        {/* <div className="border-t p-4">
           <div className="flex max-w-3xl mx-auto justify-between">
             <Button type="button" variant="outline" onClick={() => (step > 1 ? setStep(step - 1) : onClose())}>
               {step > 1 ? "Back" : "Cancel"}
@@ -888,7 +904,7 @@ export function JobFormModal({ isOpen, onClose }: JobFormModalProps) {
               </Button>
             )}
           </div>
-        </div>
+        </div> */}
       </div>
     </div>
   )

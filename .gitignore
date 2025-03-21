@@ -127,8 +127,7 @@ celerybeat.pid
 # SageMath parsed files
 *.sage.py
 
-# Environments
-#.env
+# Environments#
 .venv
 env/
 venv/
@@ -172,7 +171,7 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
-#.env
+#
 # Next.js
 .next/
 out/

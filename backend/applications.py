@@ -1,7 +1,7 @@
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 from models.models import Company, Job, Candidate, Assessment
-from schemas.schemas import CompanyCreate, JobCreate, ApplicationFeedbackPayload, JobResponse, ApplicationFeedbackRequest
+from schemas.schemas import CompanyCreate, JobCreate, ApplicationFeedbackPayload, JobResponse, ApplicationFeedbackRequest, AssessmentResponse
 import httpx
 from typing import Optional, List
 import urllib.parse
@@ -323,28 +323,33 @@ async def get_job_by_id(
     job_id: int
 ) -> JobResponse:
     """
-    Get a specific job by ID with candidate count.
+    Get a specific job by ID with candidate count and assessments.
     
     Args:
         db: Database session
         job_id: ID of the job
     
     Returns:
-        JobResponse: Job details with company details and candidate count
+        JobResponse: Job details with company details, candidate count, and assessments
     """
     try:
-        # Get job with candidate count
+        # Get job with candidate count and assessments
         job_result = db.query(
             Job,
-            func.count(Candidate.id).label('candidate_count')
+            func.count(Candidate.id).label('candidate_count'),
+            Assessment
         ).outerjoin(
             Candidate,
             Job.id == Candidate.job_id
+        ).outerjoin(
+            Assessment,
+            Job.id == Assessment.job_id
         ).filter(
             Job.id == job_id
         ).group_by(
-            Job.id
-        ).first()
+            Job.id,
+            Assessment.id
+        ).all()
 
         if not job_result:
             raise HTTPException(
@@ -352,7 +357,13 @@ async def get_job_by_id(
                 detail=f"Job with ID {job_id} not found"
             )
 
-        job, candidate_count = job_result
+        # Since we're grouping by both Job and Assessment, we need to process the results
+        # The first row will have the job details
+        job = job_result[0][0]  # Get the job from first row
+        candidate_count = job_result[0][1]  # Get candidate count from first row
+        
+        # Collect all non-null assessments from the results
+        assessments = [row[2] for row in job_result if row[2] is not None]
 
         # Get company details
         company = db.query(Company).filter(Company.id == job.company_id).first()
@@ -361,7 +372,8 @@ async def get_job_by_id(
                 status_code=404,
                 detail=f"Company for job ID {job_id} not found"
             )
-
+        print(job,'printing job')
+        print(f"  Smart hire enabled: {job.smart_hire_enabled}")
         return JobResponse(
             id=job.id,
             title=job.title,
@@ -372,7 +384,18 @@ async def get_job_by_id(
             created_at=job.created_at,
             updated_at=job.updated_at,
             company_name=company.name,
-            candidate_count=candidate_count
+            candidate_count=candidate_count,
+            assessments=[
+                AssessmentResponse(
+                    id=assessment.id,
+                    difficulty=assessment.difficulty,
+                    type=assessment.type,
+                    title=assessment.title,
+                    assessment_link=assessment.assessment_link,
+                    created_at=assessment.created_at,
+                    updated_at=assessment.updated_at
+                ) for assessment in assessments
+            ]
         )
 
     except HTTPException as he:

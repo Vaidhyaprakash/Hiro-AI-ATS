@@ -72,8 +72,8 @@ export function ScreenedCandidatesList({ jobs, candidates, fetchCandidates }: Ca
       setSelectedCandidates([...selectedCandidates, id])
     }
   }
-  const moveCandidateToNextStep = async (candidateId: number, status: string) => {
-   await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/candidates/${candidateId}/update-status?status=${status}`, {
+  const moveCandidateToNextStep = async (candidateId: number, jobId: number) => {
+   await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/update/candidate-assessment/${candidateId}/job/${jobId}`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -252,7 +252,7 @@ export function ScreenedCandidatesList({ jobs, candidates, fetchCandidates }: Ca
                             setLoading(candidate.id)
                             console.log(`Moving candidate ${candidate.id} to next step`);
                             try {
-                              const response = await moveCandidateToNextStep(candidate.id, "Assessment")
+                              const response = await moveCandidateToNextStep(candidate.id, jobs[0].id)
                               console.log(response);
                               toast({variant: "success", title: "Candidate moved to next step", description: "Candidate moved to next step"})
                             } catch (error) {

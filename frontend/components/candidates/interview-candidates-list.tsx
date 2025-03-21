@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useSelector } from "react-redux"
-import { Star, Info, Download, ArrowRight, X, Loader2 } from "lucide-react"
+import { Star, Info, Download, ArrowRight, X, Loader2, PlusIcon, FormInput } from "lucide-react"
 // import { Checkbox } from "@/components/ui/checkbox"
 import type { RootState } from "@/lib/redux/store"
 import { Checkbox } from "../ui/checkbox"
@@ -18,7 +18,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import { Flex, Textarea, toast } from "@sparrowengg/twigs-react"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Flex, Text, Textarea, toast, Input } from "@sparrowengg/twigs-react"
 import { TickIcon } from "@sparrowengg/twigs-react-icons"
 // import { formatDistanceToNow } from "@/lib/utils"
 
@@ -53,6 +53,7 @@ export function InterviewCandidatesList({ jobs, candidates, fetchCandidates }: C
   const [loading, setLoading] = useState<number | null>(null)
   const [interviewSummaries, setInterviewSummaries] = useState<{[key: number]: string}>({})
   const [savingSummary, setSavingSummary] = useState<number | null>(null)
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false)
   // const job = useSelector((state: RootState) => state.jobs.jobs.find((j) => j.id === jobId))
   // const candidates = job?.candidates || []
   
@@ -227,13 +228,11 @@ export function InterviewCandidatesList({ jobs, candidates, fetchCandidates }: C
                 maxWidth: "200px",
                 display:'flex',
                 flexDirection:'column',
-                justifyContent:'center',
-                alignItems: 'center',
+                justifyContent:'flex-start',
+                alignItems: 'flex-start',
               }}>
                 <Flex css={{
                   width: '100%',
-                  justifyContent: 'center',
-                  alignItems: 'center',
                   '&>div': {
                     display: 'flex',
                     flexDirection: 'column',
@@ -241,24 +240,22 @@ export function InterviewCandidatesList({ jobs, candidates, fetchCandidates }: C
                     alignItems: 'center'
                   }
                 }}>
-                <Textarea
-                  css={{
-                    width: '90%'
-                  }}
-                  value={interviewSummaries[candidate.id] || ""}
-                  onChange={(e: any) => handleSummaryChange(candidate.id, e.target.value)}
-                />
                 <Button 
                   size="sm"
                   variant="outline"
                   className="mt-2"
-                  onClick={() => saveSummary(candidate.id)}
+                  onClick={() => {
+                    setShowFeedbackModal(true)
+                  }}
                   disabled={savingSummary === candidate.id}
                 >
                   {savingSummary === candidate.id ? (
                     <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Saving</>
                   ) : (
-                    <TickIcon color="#005844" strokeWidth={2}/>
+                     <div className="flex items-center">
+                      <PlusIcon color="#005844" strokeWidth={2}/>
+                      <span className="ml-2">Add Feedback</span>
+                    </div>
                   )}
                 </Button>
                 </Flex>
@@ -372,7 +369,185 @@ export function InterviewCandidatesList({ jobs, candidates, fetchCandidates }: C
           ))}
         </tbody>
       </table>
+      {showFeedbackModal && <FeedbackModal
+        show={showFeedbackModal}
+        onClose={() => setShowFeedbackModal(false)}
+        onSave={saveSummary}
+      />}
     </div>
   )
 }
+const FeedbackModal = ({ show, onClose, onSave }: { show: boolean, onClose: () => void, onSave: (candidateId: number) => void }) => {
+  const [interviewDetails, setInterviewDetails] = useState("");
+  const [interviewName, setInterviewName] = useState("");
+  const [email, setEmail] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [apiResponse, setApiResponse] = useState<any>(null);
+  
+  const handleSubmit = async () => {
+    setIsSubmitting(true);
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/interview-feedback`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ 
+          interviewDetails,
+          interviewName,
+          email
+        }),
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setApiResponse(data);
+        toast({variant: "success", title: "Feedback submitted", description: "Interview feedback has been saved"});
+      } else {
+        toast({variant: "error", title: "Error submitting feedback", description: "Please try again later"});
+      }
+    } catch (error) {
+      console.error("Error submitting interview feedback:", error);
+      toast({variant: "error", title: "Error submitting feedback", description: "Please try again later"});
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+  
+  const handleUpload = async () => {
+    if (!apiResponse) return;
+    
+    try {
+      const uploadResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/upload-interview`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ 
+          responseData: apiResponse
+        }),
+      });
+      
+      if (uploadResponse.ok) {
+        toast({variant: "success", title: "Upload successful", description: "Interview data has been uploaded"});
+        onClose();
+      } else {
+        toast({variant: "error", title: "Error uploading data", description: "Please try again later"});
+      }
+    } catch (error) {
+      console.error("Error uploading interview data:", error);
+      toast({variant: "error", title: "Error uploading data", description: "Please try again later"});
+    }
+  };
 
+  return <Dialog open={show} onOpenChange={onClose}>
+    <DialogContent>
+      <DialogHeader>
+        <DialogTitle css={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center'
+        }}>
+          <Text css={{
+            marginBottom: '0',
+            fontSize: '32px',
+            lineHeight: '32px',
+          }}>
+          Add Feedback
+          </Text>
+        </DialogTitle>
+      </DialogHeader>
+      <DialogDescription>
+        <Flex css={{
+          marginTop: '16px',
+          flexDirection: 'column',
+          gap: '16px',
+          padding: '16px'
+        }}>
+          <Flex css={{
+            flexDirection: 'column',
+            gap: '8px'
+          }}>
+            <Text size="sm" weight="medium">Interview Name</Text>
+            <Input 
+              placeholder="Enter interview name" 
+              value={interviewName}
+              onChange={(e) => setInterviewName(e.target.value)}
+            />
+          </Flex>
+          
+          <Flex css={{
+            flexDirection: 'column',
+            gap: '8px'
+          }}>
+            <Text size="sm" weight="medium">Email ID</Text>
+            <Input 
+              placeholder="Enter your email" 
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+          </Flex>
+          
+          <Flex css={{
+            flexDirection: 'column',
+            gap: '8px'
+          }}>
+            <Text size="sm" weight="medium">Interview Details</Text>
+            <Textarea
+              placeholder="Enter interview details and feedback"
+              value={interviewDetails}
+              onChange={(e) => setInterviewDetails(e.target.value)}
+              rows={5}
+            />
+          </Flex>
+          
+          <Flex css={{ 
+            marginTop: '16px',
+            justifyContent: 'flex-end',
+            gap: '12px'
+          }}>
+            <Button 
+              variant="outline" 
+              onClick={onClose}
+              disabled={isSubmitting}
+            >
+              Cancel
+            </Button>
+            
+            <Button 
+              onClick={handleSubmit}
+              disabled={isSubmitting || !interviewDetails || !interviewName || !email}
+            >
+              {isSubmitting ? (
+                <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Submitting</>
+              ) : (
+                "Submit Feedback"
+              )}
+            </Button>
+          </Flex>
+          
+          {apiResponse && (
+            <Flex css={{ 
+              marginTop: '16px', 
+              padding: '12px', 
+              backgroundColor: 'var(--colors-success2)', 
+              borderRadius: '4px',
+              flexDirection: 'column',
+              gap: '8px'
+            }}>
+              <Text size="sm" weight="medium" css={{ color: 'var(--colors-success11)' }}>
+                <TickIcon size="small" /> Feedback submitted successfully
+              </Text>
+              <Button 
+                onClick={handleUpload}
+                css={{ marginTop: '8px' }}
+              >
+                Upload Interview Data
+              </Button>
+            </Flex>
+          )}
+        </Flex>
+      </DialogDescription>
+    </DialogContent>
+  </Dialog>
+}
