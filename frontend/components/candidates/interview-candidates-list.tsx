@@ -267,7 +267,7 @@ export function InterviewCandidatesList({ jobs, assessment }: CandidatesListProp
                   variant="outline"
                   className="mt-2"
                   onClick={() => {
-                    setShowFeedbackModal(true)
+                    setShowFeedbackModal(candidate.id)
                   }}
                   disabled={savingSummary === candidate.id}
                 >
@@ -395,29 +395,35 @@ export function InterviewCandidatesList({ jobs, assessment }: CandidatesListProp
         show={showFeedbackModal}
         onClose={() => setShowFeedbackModal(false)}
         onSave={saveSummary}
+        job_id={jobs[0].id}
+        candidate_id={showFeedbackModal}
       />}
     </div>
   )
 }
-const FeedbackModal = ({ show, onClose, onSave }: { show: boolean, onClose: () => void, onSave: (candidateId: number) => void }) => {
+const FeedbackModal = ({ show, onClose, onSave, job_id, candidate_id }: { show: boolean, onClose: () => void, onSave: (candidateId: number) => void, job_id: number, candidate_id: number }) => {
   const [interviewDetails, setInterviewDetails] = useState("");
   const [interviewName, setInterviewName] = useState("");
   const [email, setEmail] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [apiResponse, setApiResponse] = useState<any>(null);
+  const [videoFile, setVideoFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
   
-  const handleSubmit = async () => {
+  const handleSubmit = async (candidate_id: number, job_id: number) => {
     setIsSubmitting(true);
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/interview-feedback`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/interviewer`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ 
-          interviewDetails,
-          interviewName,
-          email
+          feedback: interviewDetails,
+          name: interviewName,
+          email: email,
+          candidate_id: candidate_id,
+          job_id: job_id
         }),
       });
       
@@ -437,17 +443,21 @@ const FeedbackModal = ({ show, onClose, onSave }: { show: boolean, onClose: () =
   };
   
   const handleUpload = async () => {
-    if (!apiResponse) return;
     
+    setIsUploading(true);
     try {
+      // Create FormData to handle file upload
+      const formData = new FormData();
+      formData.append('responseData', JSON.stringify(apiResponse));
+      
+      // Add video file if selected
+      if (videoFile) {
+        formData.append('video', videoFile);
+      }
+      
       const uploadResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/upload-interview`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ 
-          responseData: apiResponse
-        }),
+        body: formData, // Using FormData instead of JSON
       });
       
       if (uploadResponse.ok) {
@@ -459,6 +469,20 @@ const FeedbackModal = ({ show, onClose, onSave }: { show: boolean, onClose: () =
     } catch (error) {
       console.error("Error uploading interview data:", error);
       toast({variant: "error", title: "Error uploading data", description: "Please try again later"});
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      // Check if file is a video
+      if (file.type.startsWith('video/')) {
+        setVideoFile(file);
+      } else {
+        toast({variant: "error", title: "Invalid file type", description: "Please upload a video file"});
+      }
     }
   };
 
@@ -514,7 +538,7 @@ const FeedbackModal = ({ show, onClose, onSave }: { show: boolean, onClose: () =
             flexDirection: 'column',
             gap: '8px'
           }}>
-            <Text size="sm" weight="medium">Interview Details</Text>
+            <Text size="sm" weight="medium">Interview Feedback</Text>
             <Textarea
               placeholder="Enter interview details and feedback"
               value={interviewDetails}
@@ -523,30 +547,30 @@ const FeedbackModal = ({ show, onClose, onSave }: { show: boolean, onClose: () =
             />
           </Flex>
           
-          <Flex css={{ 
-            marginTop: '16px',
-            justifyContent: 'flex-end',
-            gap: '12px'
-          }}>
-            <Button 
-              variant="outline" 
-              onClick={onClose}
-              disabled={isSubmitting}
-            >
-              Cancel
-            </Button>
-            
-            <Button 
-              onClick={handleSubmit}
-              disabled={isSubmitting || !interviewDetails || !interviewName || !email}
-            >
-              {isSubmitting ? (
-                <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Submitting</>
-              ) : (
-                "Submit Feedback"
-              )}
-            </Button>
-          </Flex>
+        {!apiResponse && <Flex css={{ 
+          marginTop: '16px',
+          justifyContent: 'flex-end',
+          gap: '12px'
+        }}>
+          <Button 
+            variant="outline" 
+            onClick={onClose}
+            disabled={isSubmitting}
+          >
+            Cancel
+          </Button>
+          
+          <Button 
+            onClick={() => handleSubmit(candidate_id, job_id)}
+            disabled={isSubmitting || !interviewDetails || !interviewName || !email}
+          >
+            {isSubmitting ? (
+              <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Submitting</>
+            ) : (
+              "Submit Feedback"
+            )}
+          </Button>
+        </Flex>}
           
           {apiResponse && (
             <Flex css={{ 
@@ -555,16 +579,34 @@ const FeedbackModal = ({ show, onClose, onSave }: { show: boolean, onClose: () =
               backgroundColor: 'var(--colors-success2)', 
               borderRadius: '4px',
               flexDirection: 'column',
-              gap: '8px'
+              gap: '16px'
             }}>
-              <Text size="sm" weight="medium" css={{ color: 'var(--colors-success11)' }}>
-                <TickIcon size="small" /> Feedback submitted successfully
-              </Text>
+              <Flex css={{
+                flexDirection: 'column',
+                gap: '8px'
+              }}>
+                <Text size="sm" weight="medium">Upload Interview Recording</Text>
+                <Input 
+                  type="file" 
+                  accept="video/*"
+                  onChange={handleFileChange}
+                />
+                {videoFile && (
+                  <Text size="xs" css={{ color: 'var(--colors-success11)' }}>
+                    Selected: {videoFile.name} ({(videoFile.size / (1024 * 1024)).toFixed(2)} MB)
+                  </Text>
+                )}
+              </Flex>
+              
               <Button 
                 onClick={handleUpload}
-                css={{ marginTop: '8px' }}
+                disabled={isUploading}
               >
-                Upload Interview Data
+                {isUploading ? (
+                  <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Uploading...</>
+                ) : (
+                  "Upload Interview Data"
+                )}
               </Button>
             </Flex>
           )}

@@ -23,7 +23,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={inter.className} style={{fontFamily: "DM Sans"}}>
+      <body className={`${inter.className}`} style={{fontFamily: "DM Sans"}}>
         <ProvidersWrapper>{children}</ProvidersWrapper>
       </body>
     </html>

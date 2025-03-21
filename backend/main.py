@@ -211,6 +211,7 @@ class InterviewerRequest(BaseModel):
     email: EmailStr
     job_id: int
     candidate_id: int
+    feedback: str
 
 class WebhookRequest(BaseModel):
     answers: dict
@@ -1189,7 +1190,7 @@ async def create_interviewer(
     Create a new interviewer record
     """
     # Check if interviewer with email already exists
-    existing_interviewer = db.query(Interviewer).filter(Interviewer.email == email).first()
+    existing_interviewer = db.query(Interviewer).filter(Interviewer.email == request.email).first()
     if existing_interviewer:
         interviewer = existing_interviewer
     else:
@@ -1204,7 +1205,6 @@ async def create_interviewer(
         interviewer_id=interviewer.id,
         feedback=request.feedback,
         candidate_id=request.candidate_id,
-        job_id=request.job_id
     )
     db.add(interview)
     db.commit()

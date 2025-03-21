@@ -87,20 +87,16 @@ export default function JobDetailsPage() {
         }
         
         const data = await response.json();
+        console.log(data);
         setJob(data);
+        const count = {};
         for (const assessment of data.assessments) {
           const responseCandidates =  await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/assessments/${assessment.id}/candidates`);
           const dataCandidates = await responseCandidates.json();
           console.log("dataCandidates", dataCandidates);
-          if (dataCandidates.total_candidates > 0) {
-            
-            setAssessmentsCount({
-              ...assessmentsCount,
-              [assessment.id]: dataCandidates.total_candidates
-            });
-          }
-          
+          count[assessment.id] = dataCandidates.total_candidates;
         }
+        setAssessmentsCount(count);
         const responseCandidates = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/jobs/${params.id}/candidates`);
         const dataCandidates = await responseCandidates.json();
         console.log(dataCandidates);
@@ -193,6 +189,7 @@ export default function JobDetailsPage() {
       .catch(error => console.error('Error fetching candidates:', error));
   };
   console.log(job);
+  console.log(assessmentsCount, "assessmentsCount");
   return (
     <div className="bg-[#f8f8f8] min-h-screen">
       <div className="max-w-7xl mx-auto p-6">
