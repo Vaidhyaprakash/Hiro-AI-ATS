@@ -206,6 +206,12 @@ class AnswerSubmission(BaseModel):
     answer: str
     score: float
 
+class InterviewerRequest(BaseModel):
+    name: str
+    email: EmailStr
+    job_id: int
+    candidate_id: int
+
 class WebhookRequest(BaseModel):
     answers: dict
     candidate_assessment_id: int
@@ -1174,13 +1180,9 @@ async def get_candiates_based_on_assessment_id(assessment_id: int, db: Session =
         
     return result
 
-@app.post("/api/interviewer/{candidate_id}/{job_id}")
+@app.post("/api/interviewer")
 async def create_interviewer(
-    candidate_id: int,
-    job_id: int,
-    name: str = Form(...),
-    email: str = Form(...),
-    feedback: str = Form(...),
+    request: InterviewerRequest,
     db: Session = Depends(get_db)
 ):
     """
@@ -1192,17 +1194,17 @@ async def create_interviewer(
         interviewer = existing_interviewer
     else:
         interviewer = Interviewer(
-            name=name,
-            email=email
+            name=request.name,
+            email=request.email
         )
         db.add(interviewer)
         db.commit()
         db.refresh(interviewer)
     interview = Interview(
         interviewer_id=interviewer.id,
-        feedback=feedback,
-        candidate_id=candidate_id,
-        job_id=job_id
+        feedback=request.feedback,
+        candidate_id=request.candidate_id,
+        job_id=request.job_id
     )
     db.add(interview)
     db.commit()
