@@ -117,6 +117,13 @@ export function AssessmentList({ jobs, assessment }: CandidatesListProps) {
       return "-"
     }
   }
+  const generateLink = async (candidateId: number) => {
+    const link = `${process.env.NEXT_PUBLIC_CLIENT_URL}/exam/${candidateId}/session/${assessment.id}`
+    console.log("link", link);
+    navigator.clipboard.writeText(link);
+    toast({variant: "success", title: "Link copied to clipboard", description: "Assessment link copied to clipboard"})
+    
+  }
 
   const getTimeAgo = (dateString: string) => {
     if (!isClient || !dateString) return ""
@@ -213,7 +220,7 @@ export function AssessmentList({ jobs, assessment }: CandidatesListProps) {
                 <div className="flex flex-col space-y-2">
                   <div className="flex flex-col justify-between">
                     <span className="text-sm font-medium py-1 rounded">
-                      Score: {candidate?.assessment_score ? candidate.assessment_score.toFixed(2) : 'Not Attended'}
+                      Score: {assessmentDataCandidates[candidate.id]?.status === "completed" ? assessmentDataCandidates[candidate.id]?.overall_score.toFixed(2) : 'Not Attended'}
                     </span>
                     <Popover>
                       <PopoverTrigger asChild>
@@ -277,6 +284,23 @@ export function AssessmentList({ jobs, assessment }: CandidatesListProps) {
               <td className="py-4">
                 {loading === candidate.id ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                 {loading !== candidate.id && <div className="flex space-x-3">
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button 
+                          variant="ghost" 
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => generateLink(candidate.id)}
+                        >
+                         Link
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Generate Link</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
