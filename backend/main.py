@@ -874,7 +874,7 @@ async def update_candidate_assessment(candidate_assessment_id: int, candidate_id
 
     # Get all assessments for this job ordered by ID
     assessments = db.query(Assessment)\
-        .filter(Assessment.job_id == job_id)\
+        .filter(Assessment.job_id == job_id,Assessment.type =="initial_screening")\
         .order_by(Assessment.id)\
         .all()
 
