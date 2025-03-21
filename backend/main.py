@@ -36,7 +36,7 @@ from createSurvey import generateQuestionsAndStore
 import time
 from dotenv import load_dotenv
 from ngrok import update_ngrok_url
-
+from handleWorkflow import handleWorkflow
 # Set environment variable to disable the new security behavior
 os.environ['TORCH_FORCE_WEIGHTS_ONLY'] = '0'
 
@@ -86,6 +86,7 @@ class Answer(BaseModel):
     question_type: str
     question: str
     answer: str
+    question_id: int
 
 class PaperCorrectionRequest(BaseModel):
     questions: List[Answer]
@@ -360,6 +361,7 @@ async def get_jobs_for_company(
 @app.post("/api/submit-answer")
 def submit_answer(request: WebhookRequest, db: Session = Depends(get_db)):
     print(f"Received request to submit answer: {request.answers}")
+    handleWorkflow(request.answers, db)
     return {"message": "Answer submitted successfully"}
 
 @app.post("/api/create-survey")

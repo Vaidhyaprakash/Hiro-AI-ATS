@@ -13,7 +13,8 @@ Ensure that:
 - Check for missing closing braces and brackets.
 - Dont change text or content or object structure or object key and value strings.
 - The error is only in double quotes enclosing and a missing closing brace or bracket.
-- Strictly follow the JSON format: {json_format}."""
+- Strictly follow the JSON format: {json_format}.
+- Do not include comments in the JSON string."""
 
     response = ollama.chat(model="mistral", messages=[{"role": "user", "content": prompt}])
     return response["message"]["content"]
