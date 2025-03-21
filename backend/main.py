@@ -199,6 +199,7 @@ class AnswerSubmission(BaseModel):
 
 class WebhookRequest(BaseModel):
     answers: dict
+    candidate_assessment_id: int
 class LeadGenerationRequest(BaseModel):
     job_id: int
     skills: List[str]
@@ -364,10 +365,10 @@ async def get_jobs_for_company(
     """
     return await get_company_jobs(db=db, company_id=company_id)
 
-@app.post("/api/submit-answer")
+@app.post("/api/answer/submit")
 def submit_answer(request: WebhookRequest, db: Session = Depends(get_db)):
     print(f"Received request to submit answer: {request.answers}")
-    handleWorkflow(request.answers, db)
+    handleWorkflow(request.answers, db, request.candidate_assessment_id)
     return {"message": "Answer submitted successfully"}
 
 @app.post("/api/create-survey")
