@@ -836,6 +836,13 @@ async def map_candidate_to_first_assessment(candidate_id: int, job_id: int, db: 
         .filter(Assessment.job_id == job_id)\
         .order_by(Assessment.id)\
         .first()
+    
+    candidate = db.query(Candidate).filter(Candidate.id == candidate_id).first()
+    if not candidate:
+        raise HTTPException(status_code=404, detail="Candidate not found")
+    
+    candidate.status = CandidateStatus.ASSESSMENT
+    db.commit()
 
     if not first_assessment:
         raise HTTPException(status_code=404, detail="No assessments found for this job")
@@ -846,6 +853,7 @@ async def map_candidate_to_first_assessment(candidate_id: int, job_id: int, db: 
         assessment_id=first_assessment.id,
         status=AssessmentStatus.PENDING
     )
+    
     db.add(new_candidate_assessment)
     db.commit()
     
