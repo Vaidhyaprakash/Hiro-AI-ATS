@@ -38,5 +38,5 @@ def callPaperCorrection(db: Session, candidate_assessment: CandidateAssessment):
         answers_to_correct.append(answer)
     result = paper_correction(answers_to_correct, db)
     print("Result: ", result)
-    db.query(CandidateAssessment).filter(CandidateAssessment.id == candidate_assessment.id).update({"properties": result})
+    db.query(CandidateAssessment).filter(CandidateAssessment.id == candidate_assessment.id).update({"overall_score": result["summary_scores"]["total"], "properties": result})
     db.commit()

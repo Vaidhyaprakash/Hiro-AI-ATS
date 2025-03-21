@@ -1,6 +1,7 @@
 import re
 import json
 import ollama
+import hjson
 
 def jsonValidator(json_str, json_format):
     prompt = f"""You are a JSON validator. Convert the following malformed JSON into a valid JSON format:
@@ -35,8 +36,8 @@ def clean_and_convert_json(model_output, json_format):
 
         # Step 3: Try to convert to JSON object
         try:
-            return json.loads(json_str)
-        except json.JSONDecodeError:
+            return hjson.loads(json_str)
+        except Exception as e:
             # Try appending a closing brace and parse again
             try:
                 json_str = jsonValidator(json_str, json_format)
@@ -56,8 +57,8 @@ def clean_and_convert_json(model_output, json_format):
                 json_str = re.sub(r'\s+', ' ', json_str)  # Remove excessive spaces
                 json_str = json_str.strip()
                 print("corrected json -> ",json_str)
-                return json.loads(json_str)
-            except json.JSONDecodeError as e:
+                return hjson.loads(json_str)
+            except Exception as e:
                 print("Invalid JSON even after fixing:", e)
                 return {
                     "error": "Failed to parse JSON"

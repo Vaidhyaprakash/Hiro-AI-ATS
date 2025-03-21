@@ -40,7 +40,7 @@ from createSurvey import generateQuestionsAndStore
 import time
 from dotenv import load_dotenv
 from ngrok import update_ngrok_url
-from handleWorkflow import handleWorkflow
+from handleWorkflow import handleWorkflow, callPaperCorrection
 from leads import find_candidates, get_job_leads
 
 # Set environment variable to disable the new security behavior
@@ -193,6 +193,10 @@ class AssessmentResponse(BaseModel):
     difficulty: int
     assessment_link: Optional[str]
     questions: List[dict]
+
+class GenerateQuestions(BaseModel):
+   assessment_id: int
+   job_id: int 
 
 class AnswerSubmission(BaseModel):
     questionId: int
@@ -551,6 +555,72 @@ async def analyze_attitude(db: Session = Depends(get_db)):
         "attitude_analysis": attitude_analysis
     }
 
+@app.post("/api/question-set-generator")
+def generate_question_set(request: GenerateQuestions, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+    # Validate assessment exists first
+    assessment = db.query(Assessment).filter(Assessment.id == request.assessment_id).first()
+    if not assessment:
+        return {"success": False, "message": "Assessment not found"}
+    
+    job = db.query(Job).filter(Job.id == request.job_id).first()
+    if not job:
+        return {"success": False, "message": "Job not found"}
+    
+    # Process difficulty if needed
+    if hasattr(assessment, "properties") and assessment.properties and "difficulty" in assessment.properties:
+        difficulty_string = convert_difficulty(assessment)
+        assessment.properties["difficulty"] = difficulty_string
+    
+    # Add task to background
+    background_tasks.add_task(
+        process_question_generation,
+        assessment.properties.get("num_mcq", 5),
+        assessment.properties.get("num_openended", 3),
+        assessment.properties.get("num_coding", 2),
+        assessment.properties.get("difficulty", "medium"),
+        job.title,
+        assessment.properties.get("skills", []),
+        assessment.id,
+        job.id,
+        db
+    )
+    
+    # Update assessment status to IN_PROGRESS
+    assessment.status = AssessmentStatus.IN_PROGRESS
+    db.commit()
+    
+    return {
+        "success": True, 
+        "message": "Question generation started", 
+        "assessment_id": assessment.id,
+        "job_id": job.id
+    }
+
+# Add this function to handle the background task
+def process_question_generation(num_mcq, num_openended, num_coding, difficulty, job_title, skills, assessment_id, job_id, db):
+    try:
+        with db:  # Create a new session
+            generateQuestionsAndStore(
+                num_mcq, num_openended, num_coding, 
+                difficulty, job_title, skills, 
+                assessment_id, job_id, db
+            )
+            
+            # Update assessment status when complete
+            assessment = db.query(Assessment).filter(Assessment.id == assessment_id).first()
+            if assessment:
+                assessment.status = AssessmentStatus.COMPLETED
+                db.commit()
+    except Exception as e:
+        print(f"Error in question generation: {str(e)}")
+        # Update assessment status on error
+        with db:
+            assessment = db.query(Assessment).filter(Assessment.id == assessment_id).first()
+            if assessment:
+                assessment.status = AssessmentStatus.FAILED
+                assessment.properties["error"] = str(e)
+                db.commit()
+
 @app.get("/api/candidates/{candidate_id}/analytics")
 async def get_candidate_analytics(
     candidate_id: int,
@@ -650,7 +720,7 @@ async def submit_answer(submission: AnswerSubmission, db: Session = Depends(get_
         )
         db.add(answer)
         db.commit()
-        
+        callPaperCorrection(db, candidate_assessment)
         return {
             "message": "Answer submitted successfully",
             "answerId": answer.id
@@ -725,6 +795,36 @@ async def get_leads_for_job(
     Get all leads for a specific job if smart hire is enabled.
     """
     return await get_job_leads(job_id=job_id, db=db)
+
+def convert_difficulty(assessment):
+    difficulty = assessment["properties"]["difficulty"]
+    
+    # Check if it's already a string difficulty
+    if isinstance(difficulty, str):
+        if difficulty.lower() in ["easy", "medium", "intermediate", "hard"]:
+            return difficulty.lower()
+    
+    # Try to convert to number if it's a string containing a number
+    try:
+        if isinstance(difficulty, str):
+            difficulty = int(difficulty)
+        
+        # Now handle as a number
+        if isinstance(difficulty, (int, float)):
+            if 0 <= difficulty <= 3:
+                return "easy"
+            elif 4 <= difficulty <= 6:
+                return "medium"
+            elif 7 <= difficulty <= 8:
+                return "intermediate"
+            elif difficulty > 8:
+                return "hard"
+    except (ValueError, TypeError):
+        # If conversion fails, return default
+        return "medium"
+    
+    # Default case
+    return "medium"
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True) 

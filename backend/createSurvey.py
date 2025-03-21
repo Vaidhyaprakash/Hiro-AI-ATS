@@ -16,7 +16,15 @@ def create_survey(survey_name: str):
     }
     data = {
         "name": survey_name,
-        "survey_type": "ClassicForm"
+        "survey_type": "ClassicForm",
+        "thankyou_json": [
+            {
+                "preAdded": True,
+                "message": "You are one step closer!",
+                "description": "We will get back to you soon.",
+                "branding": False
+            }
+        ]
     }
 
     response = requests.post(url, headers=headers, json=data)
@@ -61,7 +69,7 @@ def create_channel(name: str, survey_id: int):
     print(f"Channel created: {response.json()}")
     return response.json()["data"]
 
-def create_workflow(survey_id: int, assessment_id: int, db: Session, candidate_assessment: CandidateAssessment):
+def create_workflow(survey_id: int, assessment_id: int, db: Session):
     url = "https://api.salesparrow.com/v3/webhooks"
     headers = {
         "Authorization": f"Bearer {os.getenv('SURVEYSPARROW_API_KEY')}",
@@ -73,7 +81,7 @@ def create_workflow(survey_id: int, assessment_id: int, db: Session, candidate_a
         "http_method": "POST",
         "payload": {
             "answers": {},
-            "candidate_assessment_id": candidate_assessment.id
+            "candidate_assessment_id": "{{custom_param_candidate_assessment_id}}"
         }
     } 
     questions = db.query(Question).filter(
@@ -84,6 +92,22 @@ def create_workflow(survey_id: int, assessment_id: int, db: Session, candidate_a
         data["payload"]["answers"][question.id] = f"{{question_{question.properties['question_id']}}}"
     response = requests.post(url, headers=headers, json=data)
     print(f"Workflow created -> {response.json()}")
+    return response.json()["data"]
+
+def create_custom_variable(survey_id: int):
+    url = "https://api.salesparrow.com/v3/variables"
+    headers = {
+        "Authorization": f"Bearer {os.getenv('SURVEYSPARROW_API_KEY')}",
+        "Content-Type": "application/json"
+    }
+    data = {
+        "survey_id": survey_id,
+        "label": "candidate_assessment_id",
+        "name": "candidate_assessment_id",
+        "type": "NUMBER"
+    }
+    response = requests.post(url, headers=headers, json=data)
+    print(f"Custom variable created -> {response.json()}")
     return response.json()["data"]
 
         
@@ -182,8 +206,7 @@ def generateQuestionsAndStore(num_mcq: int, num_openended: int, num_coding: int,
             "assessment_link": channel["url"]
         })
     db.commit()
-    candidate_assessment = db.query(CandidateAssessment).filter(CandidateAssessment.assessment_id == assessment_id).first()
-    db.commit()
-    create_workflow(survey["id"], assessment_id, db, candidate_assessment)
+    create_custom_variable(survey["id"])
+    create_workflow(survey["id"], assessment_id, db)
     return {"success": True}
 
