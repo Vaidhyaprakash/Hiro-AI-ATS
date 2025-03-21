@@ -762,7 +762,7 @@ async def get_assessment_status(
 
         if not candidate_assessment:
             return {
-                "status": "NOT_STARTED",
+                "status": AssessmentStatus.PENDING,
                 "score": 0,
                 "honesty_score": 0
             }
@@ -1081,7 +1081,7 @@ async def map_candidate_to_first_assessment(candidate_id: int, job_id: int, db: 
     new_candidate_assessment = CandidateAssessment(
         candidate_id=candidate_id,
         assessment_id=first_assessment.id,
-        status="NOT_STARTED"
+        status=AssessmentStatus.PENDING
     )
     db.add(new_candidate_assessment)
     db.commit()
@@ -1119,7 +1119,7 @@ async def update_candidate_assessment(candidate_assessment_id: int, candidate_id
         new_candidate_assessment = CandidateAssessment(
             candidate_id=candidate_id,
             assessment_id=next_assessment.id,
-            status="NOT_STARTED"
+            status= AssessmentStatus.PENDING
         )
         db.add(new_candidate_assessment)
         
@@ -1206,3 +1206,5 @@ async def create_interviewer(
         "email": interviewer.email,
         "interview_id": interview.id
     }
+
+
