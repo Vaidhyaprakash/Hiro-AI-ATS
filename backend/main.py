@@ -1,4 +1,4 @@
-from fastapi import FastAPI, UploadFile, File, HTTPException, BackgroundTasks, WebSocket, Depends, Request
+from fastapi import FastAPI, UploadFile, File, HTTPException, BackgroundTasks, WebSocket, Depends, Request, Form
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, EmailStr
 from typing import List, Optional
@@ -33,7 +33,7 @@ from models.models import Candidate, CandidateStatus, Job, AttitudeAnalysis
 import uuid
 from candidate_analytics import get_candidate_performance_metrics
 
-from models.models import Candidate, CandidateStatus, Job
+from models.models import Candidate, CandidateStatus, Job, Interviewer
 from questionGenerator import generate_questions
 from paperCorrection import correct_answer, paper_correction
 from createSurvey import generateQuestionsAndStore
@@ -803,3 +803,42 @@ async def get_candiates_based_on_assessment_id(assessment_id: int, db: Session =
         
     return result
 
+@app.post("/api/interviewer")
+async def create_interviewer(
+    name: str = Form(...),
+    email: str = Form(...),
+    db: Session = Depends(get_db)
+):
+    """
+    Create a new interviewer record
+    """
+    try:
+        # Check if interviewer with email already exists
+        existing_interviewer = db.query(Interviewer).filter(Interviewer.email == email).first()
+        if existing_interviewer:
+            return {
+                "message": "Interviewer already exists",
+                "id": existing_interviewer.id,
+                "name": existing_interviewer.name,
+                "email": existing_interviewer.email
+            }
+            
+        # Create new interviewer
+        interviewer = Interviewer(
+            name=name,
+            email=email
+        )
+        db.add(interviewer)
+        db.commit()
+        db.refresh(interviewer)
+        
+        return {
+            "message": "Interviewer created successfully",
+            "id": interviewer.id,
+            "name": interviewer.name,
+            "email": interviewer.email
+        }
+        
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
