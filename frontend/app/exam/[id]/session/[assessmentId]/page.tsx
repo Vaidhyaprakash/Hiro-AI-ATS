@@ -99,6 +99,11 @@ export default function ExamSession() {
     frame: 0
   })
   const [isTestComplete, setIsTestComplete] = useState(false)
+  const [assessmentStatus, setAssessmentStatus] = useState<{
+    status: string;
+    score: number;
+    honesty_score: number;
+  } | null>(null)
 
   const wsRef = useRef<WebSocket | null>(null)
   const videoRef = useRef<HTMLVideoElement | null>(null)
@@ -318,7 +323,7 @@ export default function ExamSession() {
               } catch (error) {
                 console.error('Error sending frame:', error)
               }
-            }, 100) // Send frame every 100ms
+            }, 1000) // Send frame every 100ms
           }
         } else {
           // Wait for video to be ready
@@ -422,6 +427,21 @@ export default function ExamSession() {
     fetchAssessment()
   }, [assessmentId])
 
+  // Fetch assessment status
+  useEffect(() => {
+    const checkAssessmentStatus = async () => {
+      try {
+        const response = await axios.get(
+          `http://localhost:8000/api/assessment-status/${candidateId}/${assessmentId}`
+        );
+        setAssessmentStatus(response.data);
+      } catch (error) {
+        console.error('Error checking assessment status:', error);
+      }
+    };
+    checkAssessmentStatus();
+  }, [candidateId, assessmentId]);
+
   const {
     phone_detected,
     face_away_detected,
@@ -433,6 +453,25 @@ export default function ExamSession() {
   } = monitoringStatus
 
   const issuesDetected = phone_detected || face_away_detected || no_face_detected || multiple_faces_detected
+  console.log(assessmentStatus?.status)
+  // Show completion screen if assessment is already completed
+  if (assessmentStatus?.status === "completed") {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50">
+        <div className="max-w-md w-full bg-white shadow-lg rounded-lg p-8 text-center">
+          <div className="mb-4 text-green-500">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <h2 className="text-2xl font-bold mb-4">Assessment Already Completed!</h2>
+          <p className="text-gray-600 mb-4">
+            You have already completed this assessment.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   if (isTestComplete) {
     return (
@@ -441,12 +480,6 @@ export default function ExamSession() {
           <h2 className="text-2xl font-bold mb-4">Test Completed!</h2>
           <p className="text-gray-600 mb-4">
             Your answers have been submitted successfully.
-          </p>
-          <p className="text-gray-600 mb-4">
-            Final Score: {results.filter((r: any) => r.passed).length / testCases.length * 100}%
-          </p>
-          <p className="text-gray-600">
-            Honesty Score: {monitoringStatus.honesty_score}%
           </p>
         </div>
       </div>

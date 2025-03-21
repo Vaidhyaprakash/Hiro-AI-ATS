@@ -17,7 +17,7 @@ original_torch_load = torch.load
 torch.load = lambda *args, **kwargs: original_torch_load(*args, weights_only=False, **kwargs)
 
 # Load YOLOv8 model
-model = YOLO("yolov8n.pt", task="detect")
+model = YOLO("yolov8x.pt", task="detect")
 
 # MediaPipe Face Mesh
 mp_face_mesh = mp.solutions.face_mesh
@@ -50,7 +50,7 @@ async def websocket_endpoint(websocket: WebSocket, candidate_id: int, db: Sessio
             frame = cv2.imdecode(np_data, cv2.IMREAD_COLOR)
 
             # YOLO - Detect phones (class 67)
-            results = model.predict(frame, conf=0.5, classes=[67])
+            results = model.predict(frame, conf=0.3, classes=[67])
             detections = results[0].boxes.data.cpu().numpy()
             phone_detected = len(detections) > 0
 

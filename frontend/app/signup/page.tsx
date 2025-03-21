@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@sparrowengg/twigs-react"; // Add this import at the top with other imports
+import { motion, AnimatePresence } from "framer-motion"; // Add this import
 
 import {
   Card,
@@ -111,52 +112,72 @@ export default function SignupPage() {
           </div>
         </div> */}
 
-        {step === 1 && (
-          <Card className="border-none" style={{boxShadow:'none'}}>
-            <CardHeader style={{padding:'24px 24px 48px 24px'}}>
-              <CardTitle className="text-center" style={{fontSize:'32px'}}>
-              Lets get started
-              </CardTitle>
-              <CardDescription className="text-center" style={{fontSize:'16px', marginTop:'8px'}}>
-              Create an account by entering your following details
-              </CardDescription>
-            </CardHeader>
-            <form onSubmit={handleSubmit}>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="name" style={{fontWeight:'400', fontSize:'12px', color:'#575757'}}>Full Name</Label>
-                  <Input
-                    id="name"
-                    name="name"
-                    value={formData.name}
-                    onChange={handleChange}
-                    placeholder="John Doe"
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="email" style={{fontWeight:'400', fontSize:'12px',color:'#575757'}}>Email</Label>
-                  <Input
-                    id="email"
-                    name="email"
-                    type="email"
-                    value={formData.email}
-                    onChange={handleChange}
-                    placeholder="john@example.com"
-                    required
-                  />
-                </div>
-              </CardContent>
-              <CardFooter>
-                <Button type="submit" className="w-full">
-                  Sign Up
-                </Button>
-              </CardFooter>
-            </form>
-          </Card>
-        )}
+        <AnimatePresence mode="wait">
+          {step === 1 && (
+            <motion.div
+              key="step1"
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.3 }}
+            >
+              <Card className="border-none" style={{boxShadow:'none'}}>
+                <CardHeader style={{padding:'24px 24px 48px 24px'}}>
+                  <CardTitle className="text-center" style={{fontSize:'32px'}}>
+                  Lets get started
+                  </CardTitle>
+                  <CardDescription className="text-center" style={{fontSize:'16px', marginTop:'8px'}}>
+                  Create an account by entering your following details
+                  </CardDescription>
+                </CardHeader>
+                <form onSubmit={handleSubmit}>
+                  <CardContent className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="name" style={{fontWeight:'400', fontSize:'12px', color:'#575757'}}>Full Name</Label>
+                      <Input
+                        id="name"
+                        name="name"
+                        value={formData.name}
+                        onChange={handleChange}
+                        placeholder="John Doe"
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="email" style={{fontWeight:'400', fontSize:'12px',color:'#575757'}}>Email</Label>
+                      <Input
+                        id="email"
+                        name="email"
+                        type="email"
+                        value={formData.email}
+                        onChange={handleChange}
+                        placeholder="john@example.com"
+                        required
+                      />
+                    </div>
+                  </CardContent>
+                  <CardFooter>
+                    <Button type="submit" className="w-full">
+                      Sign Up
+                    </Button>
+                  </CardFooter>
+                </form>
+              </Card>
+            </motion.div>
+          )}
 
-        {step === 2 && <CompanyDetailsForm />}
+          {step === 2 && (
+            <motion.div
+              key="step2"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 20 }}
+              transition={{ duration: 0.3 }}
+            >
+              <CompanyDetailsForm />
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );
