@@ -2,6 +2,19 @@ from pydantic import BaseModel, EmailStr
 from typing import Optional, List
 from datetime import datetime
 
+# Assessment Response schema (moved up)
+class AssessmentResponse(BaseModel):
+    id: int
+    difficulty: int
+    type: str
+    title: str
+    assessment_link: Optional[str] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
 # Company schemas
 class CompanyBase(BaseModel):
     name: str
@@ -47,7 +60,7 @@ class JobResponse(JobBase):
     updated_at: Optional[datetime] = None
     company_name: str
     candidate_count: int = 0
-    smart_hire_enabled: bool = False
+    assessments: List[AssessmentResponse] = []
 
     class Config:
         from_attributes = True
@@ -210,8 +223,7 @@ class Answer(AnswerBase):
     updated_at: datetime
 
     class Config:
-        from_attributes = True 
-
+        from_attributes = True
 
 class AttitudeAnalysisBase(BaseModel):
     candidate_id: int
@@ -232,7 +244,6 @@ class AttitudeAnalysis(AttitudeAnalysisBase):
 
     class Config:
         from_attributes = True
-
 
 class InterviewBase(BaseModel):
     id: int
