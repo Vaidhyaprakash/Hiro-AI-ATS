@@ -43,7 +43,7 @@ interface CandidatesListProps {
   fetchCandidates: () => void
 }
 
-export function ScreenedCandidatesList({ jobs, candidates, fetchCandidates }: CandidatesListProps) {
+export function HiredCandidatesList({ jobs, candidates, fetchCandidates }: CandidatesListProps) {
   const [selectAll, setSelectAll] = useState(false)
   const [selectedCandidates, setSelectedCandidates] = useState<string[]>([])
   const [isClient, setIsClient] = useState(false)
@@ -252,11 +252,13 @@ export function ScreenedCandidatesList({ jobs, candidates, fetchCandidates }: Ca
                             setLoading(candidate.id)
                             console.log(`Moving candidate ${candidate.id} to next step`);
                             try {
-                              const response = await moveCandidateToNextStep(candidate.id, "Assessment")
-                              console.log(response);
+                             const response = await moveCandidateToNextStep(candidate.id, "Assessment")
+                            if (response.status === 200) {
                               toast({variant: "success", title: "Candidate moved to next step", description: "Candidate moved to next step"})
+                            } else {
+                              toast({variant: "error", title: "Error moving candidate to next step", description: "Please try again later"})
+                            }
                             } catch (error) {
-                              console.log('response')
                               toast({variant: "error", title: "Error moving candidate to next step", description: "Please try again later"})
                               console.error("Error moving candidate to next step:", error);
                             }
@@ -283,7 +285,7 @@ export function ScreenedCandidatesList({ jobs, candidates, fetchCandidates }: Ca
                           className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
                           onClick={async () => {
                             // You'll implement this functionality later
-                            await moveCandidateToNextStep(candidate.id, "Rejected")
+                            await moveCandidateToNextStep(candidate.id, "Hired")
                             console.log(`Rejecting candidate ${candidate.id}`);
                           }}
                         >

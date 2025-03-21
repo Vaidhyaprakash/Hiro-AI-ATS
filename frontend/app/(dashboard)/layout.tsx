@@ -78,13 +78,7 @@ export default function DashboardLayout({
           </SidebarFooter>
         </Sidebar>
         <div className="flex-1 overflow-auto">
-          <header className="flex h-14 items-center border-b px-4 bg-white">
-            <SidebarTrigger />
-            <div className="ml-4">
-              <h2 className="text-lg font-semibold">
-                {pathname.split("/")[1].charAt(0).toUpperCase() + pathname.split("/")[1].slice(1)}
-              </h2>
-            </div>
+          <header className="flex h-10 items-center px-4 bg-white">
           </header>
           <AnimatePresence mode="wait">
             <motion.main

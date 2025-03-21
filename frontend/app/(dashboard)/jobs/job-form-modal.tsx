@@ -86,7 +86,7 @@ export function JobFormModal({ isOpen, onClose }: JobFormModalProps) {
     if (step < 3) {
       if (step === 2) {
         const payload = {
-          company_id: 9,
+          company_id: 1,
           job_title: formData.title,
           job_description: formData.description,
           requirements: formData.experience,

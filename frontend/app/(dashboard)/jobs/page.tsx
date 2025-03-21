@@ -141,10 +141,11 @@ export default function JobsPage() {
         return;
       }
       
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/companies/9/jobs`);
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/companies/1/jobs`);
       
       if (!response.ok) {
-        throw new Error(`API responded with status: ${response.status}`);
+        dispatch(setJobs([]));
+        return;
       }
       
       const data = await response.json();
@@ -166,11 +167,13 @@ export default function JobsPage() {
 
   return (
     <div>
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <Button onClick={handleNewJob} className="gap-1">
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h1 className="text-4xl font-semibold text-[#4b7a3e]">Jobs</h1>
+      <div className="flex items-center justify-end">
+        <Button onClick={handleNewJob} className="gap-1 mr-4">
           <Plus className="h-4 w-4" />
-          New Job Opening
+          New Job
         </Button>
         <div className="flex items-center gap-2">
           <span className="text-sm text-muted-foreground">
@@ -189,7 +192,8 @@ export default function JobsPage() {
               <DropdownMenuItem onClick={() => setFilterStatus("draft")}>Draft</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-        </div>
+            </div>
+            </div>
       </div>
 
       <Card>
