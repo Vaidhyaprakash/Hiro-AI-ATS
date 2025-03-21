@@ -33,7 +33,7 @@ from models.models import Candidate, CandidateStatus, Job, AttitudeAnalysis
 import uuid
 from candidate_analytics import get_candidate_performance_metrics
 
-from models.models import Candidate, CandidateStatus, Job, Interviewer
+from models.models import Candidate, CandidateStatus, Job, Interviewer, Interview
 from questionGenerator import generate_questions
 from paperCorrection import correct_answer, paper_correction
 from createSurvey import generateQuestionsAndStore
@@ -803,27 +803,23 @@ async def get_candiates_based_on_assessment_id(assessment_id: int, db: Session =
         
     return result
 
-@app.post("/api/interviewer")
+@app.post("/api/interviewer/{candidate_id}/{job_id}")
 async def create_interviewer(
+    candidate_id: int,
+    job_id: int,
     name: str = Form(...),
     email: str = Form(...),
+    feedback: str = Form(...),
     db: Session = Depends(get_db)
 ):
     """
     Create a new interviewer record
     """
-    try:
-        # Check if interviewer with email already exists
-        existing_interviewer = db.query(Interviewer).filter(Interviewer.email == email).first()
-        if existing_interviewer:
-            return {
-                "message": "Interviewer already exists",
-                "id": existing_interviewer.id,
-                "name": existing_interviewer.name,
-                "email": existing_interviewer.email
-            }
-            
-        # Create new interviewer
+    # Check if interviewer with email already exists
+    existing_interviewer = db.query(Interviewer).filter(Interviewer.email == email).first()
+    if existing_interviewer:
+        interviewer = existing_interviewer
+    else:
         interviewer = Interviewer(
             name=name,
             email=email
@@ -831,14 +827,19 @@ async def create_interviewer(
         db.add(interviewer)
         db.commit()
         db.refresh(interviewer)
-        
-        return {
-            "message": "Interviewer created successfully",
-            "id": interviewer.id,
-            "name": interviewer.name,
-            "email": interviewer.email
-        }
-        
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+    interview = Interview(
+        interviewer_id=interviewer.id,
+        feedback=feedback,
+        candidate_id=candidate_id,
+        job_id=job_id
+    )
+    db.add(interview)
+    db.commit()
+    db.refresh(interview)
+    return {
+        "message": "Interviewer created successfully",
+        "id": interviewer.id,
+        "name": interviewer.name,
+        "email": interviewer.email,
+        "interview_id": interview.id
+    }
