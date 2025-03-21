@@ -18,7 +18,8 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import { toast } from "@sparrowengg/twigs-react"
+import { Flex, Textarea, toast } from "@sparrowengg/twigs-react"
+import { TickIcon } from "@sparrowengg/twigs-react-icons"
 // import { formatDistanceToNow } from "@/lib/utils"
 
 interface CandidatesListProps {
@@ -39,6 +40,8 @@ interface CandidatesListProps {
     status: string | null;
     created_at: string;
     updated_at: string;
+    interview_score: number | null;
+    interview_summary: string | null;
   }[]
   fetchCandidates: () => void
 }
@@ -48,6 +51,8 @@ export function InterviewCandidatesList({ jobs, candidates, fetchCandidates }: C
   const [selectedCandidates, setSelectedCandidates] = useState<string[]>([])
   const [isClient, setIsClient] = useState(false)
   const [loading, setLoading] = useState<number | null>(null)
+  const [interviewSummaries, setInterviewSummaries] = useState<{[key: number]: string}>({})
+  const [savingSummary, setSavingSummary] = useState<number | null>(null)
   // const job = useSelector((state: RootState) => state.jobs.jobs.find((j) => j.id === jobId))
   // const candidates = job?.candidates || []
   
@@ -55,6 +60,47 @@ export function InterviewCandidatesList({ jobs, candidates, fetchCandidates }: C
   useEffect(() => {
     setIsClient(true)
   }, [])
+
+  // Initialize interview summaries from candidates data
+  useEffect(() => {
+    const summaries: {[key: number]: string} = {};
+    candidates.forEach(candidate => {
+      summaries[candidate.id] = candidate.interview_summary || "";
+    });
+    setInterviewSummaries(summaries);
+  }, [candidates]);
+
+  const handleSummaryChange = (candidateId: number, value: string) => {
+    setInterviewSummaries(prev => ({
+      ...prev,
+      [candidateId]: value
+    }));
+  }
+
+  const saveSummary = async (candidateId: number) => {
+    setSavingSummary(candidateId);
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/candidates/${candidateId}/update-summary`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ interview_summary: interviewSummaries[candidateId] }),
+      });
+      
+      if (response.ok) {
+        toast({variant: "success", title: "Feedback saved", description: "Interview feedback has been saved"});
+        fetchCandidates();
+      } else {
+        toast({variant: "error", title: "Error saving feedback", description: "Please try again later"});
+      }
+    } catch (error) {
+      console.error("Error saving interview summary:", error);
+      toast({variant: "error", title: "Error saving feedback", description: "Please try again later"});
+    } finally {
+      setSavingSummary(null);
+    }
+  }
 
   const handleSelectAll = () => {
     if (selectAll) {
@@ -144,7 +190,7 @@ export function InterviewCandidatesList({ jobs, candidates, fetchCandidates }: C
             </th>
             <th className="pb-2 font-normal text-gray-500">Candidate Info</th>
             <th className="pb-2 font-normal text-gray-500">Status</th>
-            <th className="pb-2 font-normal text-gray-500">Skills</th>
+            <th className="pb-2 font-normal text-gray-500">Feedback</th>
             <th className="pb-2 font-normal text-gray-500">Applied</th>
             <th className="pb-2 font-normal text-gray-500">Interview</th>
           </tr>
@@ -178,28 +224,51 @@ export function InterviewCandidatesList({ jobs, candidates, fetchCandidates }: C
                 whiteSpace: "nowrap",
                 overflow: "hidden",
                 textOverflow: "ellipsis",
-                maxWidth: "150px"
+                maxWidth: "200px",
+                display:'flex',
+                flexDirection:'column',
+                justifyContent:'center',
+                alignItems: 'center',
               }}>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <button className="text-left hover:underline truncate w-full">
-                      {candidate.skills}
-                    </button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-80 p-4">
-                    <div className="space-y-2">
-                      <h4 className="font-medium">Skills</h4>
-                      <p className="text-sm text-gray-700">{candidate.skills}</p>
-                    </div>
-                  </PopoverContent>
-                </Popover>
+                <Flex css={{
+                  width: '100%',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  '&>div': {
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'center',
+                    alignItems: 'center'
+                  }
+                }}>
+                <Textarea
+                  css={{
+                    width: '90%'
+                  }}
+                  value={interviewSummaries[candidate.id] || ""}
+                  onChange={(e: any) => handleSummaryChange(candidate.id, e.target.value)}
+                />
+                <Button 
+                  size="sm"
+                  variant="outline"
+                  className="mt-2"
+                  onClick={() => saveSummary(candidate.id)}
+                  disabled={savingSummary === candidate.id}
+                >
+                  {savingSummary === candidate.id ? (
+                    <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Saving</>
+                  ) : (
+                    <TickIcon color="#005844" strokeWidth={2}/>
+                  )}
+                </Button>
+                </Flex>
               </td>
               <td className="py-4" suppressHydrationWarning>{formatDate(candidate.created_at)}</td>
               <td className="py-4">
                 <div className="flex flex-col space-y-2">
                   <div className="flex flex-col justify-between">
                   <span className="text-sm font-medium py-1 rounded">
-                      Score: {candidate?.resume_score?.toFixed(2) || 'N/A'}
+                      Score: {candidate?.interview_score?.toFixed(2) || 'N/A'}
                     </span>
                     <Popover>
                       <PopoverTrigger asChild>
@@ -210,8 +279,8 @@ export function InterviewCandidatesList({ jobs, candidates, fetchCandidates }: C
                       </PopoverTrigger>
                       <PopoverContent className="w-80 p-4">
                         <div className="space-y-2">
-                          <h4 className="font-medium">Resume Summary</h4>
-                          <p className="text-sm text-gray-700">{candidate.resume_summary || "No summary available"}</p>
+                          <h4 className="font-medium">Interview Summary</h4>
+                          <p className="text-sm text-gray-700">{candidate.interview_summary || "No summary available"}</p>
                         </div>
                       </PopoverContent>
                     </Popover>
