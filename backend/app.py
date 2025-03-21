@@ -181,12 +181,13 @@ def interview_start():
     """Start the interview with the first question"""
     response = """<?xml version="1.0" encoding="UTF-8"?>
     <Response>
-        <Say>Hello, I am an HR AI assistant from SurveySparrow. I'll be conducting your HR round today.</Say>
+        <Say>Hello, I am an AI HR assistant from SurveySparrow. I'll be conducting your HR interview.</Say>
         <Pause length="1"/>
         <Say>After every question once you're finished speaking, remain silent for a few seconds, and I'll move on to the next question.</Say>
         <Pause length="1"/>
         <Say>{}</Say>
-        <Gather input="speech" action="/next-question?index=1" method="POST" timeout="5">
+        <Gather input="speech" action="/next-question?index=1" method="POST" timeout="7">
+            <Pause length="2"/>
         </Gather>
         <Redirect>/retry</Redirect>
     </Response>
@@ -194,44 +195,45 @@ def interview_start():
 
     return Response(response, mimetype="text/xml")
 
+
 @app.route("/next-question", methods=["POST"])
 def next_question():
     """Ask the next question"""
     try:
         index = int(request.args.get("index", 0))
-        
+
         if index < len(QUESTIONS):
             response = """<?xml version="1.0" encoding="UTF-8"?>
             <Response>
                 <Say>{}</Say>
-                <Gather input="speech" action="/next-question?index={}" method="POST" timeout="5">
+                <Gather input="speech" action="/next-question?index={}" method="POST" timeout="7">
+                    <Pause length="2"/>
                     <Say>Please answer now.</Say>
                 </Gather>
-                <Redirect>/error</Redirect>
+                <Redirect>/retry</Redirect>
             </Response>
             """.format(QUESTIONS[index], index + 1)
         else:
             response = """<?xml version="1.0" encoding="UTF-8"?>
             <Response>
-                <Say>Thank you for completing the interview. Our HR team will review your responses and be in touch soon.</Say>
+                <Say>Thank you for completing the interview. Our HR team will review your responses.</Say>
                 <Pause length="1"/>
                 <Say>Goodbye!</Say>
                 <Hangup/>
             </Response>
             """
-        
+
         return Response(response, mimetype="text/xml")
-    
+
     except Exception as e:
         print(f"Error in next_question: {str(e)}")
         return Response("""<?xml version="1.0" encoding="UTF-8"?>
         <Response>
-            <Say>I apologize, but I encountered an error. Let me try again.</Say>
-            <Gather input="speech" action="/retry" method="POST" timeout="5">
-                <Say>Please respond after the beep.</Say>
-            </Gather>
+            <Say>I apologize, but an error occurred. Let me try again.</Say>
+            <Redirect>/retry</Redirect>
         </Response>
         """, mimetype="text/xml")
+
 
 @app.route("/error", methods=["POST"])
 def error():
@@ -246,15 +248,16 @@ def error():
 
 @app.route("/retry", methods=["POST"])
 def retry():
-    """Handle retry if no response is detected"""
+    """Retry if no response is detected"""
     retry_count = int(request.args.get("retry_count", 0))
-    
+
     if retry_count < 2:
         response = """<?xml version="1.0" encoding="UTF-8"?>
         <Response>
-            <Say>I didn't catch your response. Let me try one more time.</Say>
+            <Say>I didn't catch your response. Let me repeat the question.</Say>
             <Gather input="speech" action="/next-question" method="POST" timeout="10">
-                <Say>Please respond now.</Say>
+                <Pause length="2"/>
+                <Say>Please answer now.</Say>
             </Gather>
             <Redirect>/retry?retry_count={}</Redirect>
         </Response>
@@ -262,14 +265,15 @@ def retry():
     else:
         response = """<?xml version="1.0" encoding="UTF-8"?>
         <Response>
-            <Say>I apologize, but I'm having trouble getting your response. We'll need to end this call. Our HR team will reach out to you to reschedule the interview.</Say>
+            <Say>I'm having trouble getting your response. We will follow up soon.</Say>
             <Pause length="1"/>
-            <Say>Thank you for your time. Goodbye!</Say>
+            <Say>Thank you. Goodbye!</Say>
             <Hangup/>
         </Response>
         """
-    
+
     return Response(response, mimetype="text/xml")
+
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
