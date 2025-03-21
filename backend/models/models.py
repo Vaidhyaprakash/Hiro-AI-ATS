@@ -209,6 +209,7 @@ class AssessmentStatus(str, enum.Enum):
 class QuestionType(str, enum.Enum):
     CODING = "coding"
     MCQ = "mcq"
+    OPEN_ENDED = "openended"
     ESSAY = "essay"
 
 class CandidateAssessment(Base):

@@ -7,6 +7,7 @@ class Answer(BaseModel):
     question: str
     answer: str
     question_type: str
+    question_id: int
 
 
 json_format = {
@@ -67,7 +68,7 @@ def paper_correction(questions: List[Answer]):
         
         # Try to get score with retries
         while retries <= max_retries:
-            result = correct_answer(answer.question, answer.answer, answer.question_type)
+            result = correct_answer(answer["question"], answer["answer"], answer["question_type"])
             if result and "score" in result:
                 break
             retries += 1
@@ -76,13 +77,14 @@ def paper_correction(questions: List[Answer]):
         
         # Add to detailed scores
         question_score = {
-            "question": answer.question,
-            "score": score
+            "question": answer["question"],
+            "score": score,
+            "question_id": answer["question_id"]
         }
-        detailed_scores[answer.question_type].append(question_score)
+        detailed_scores[answer["question_type"]].append(question_score)
         
-        # Add to summary scores
-        summary_scores[answer.question_type] += score
+        # Convert score to integer before adding
+        summary_scores[answer["question_type"]] += int(float(score))
     
     # Calculate total score
     summary_scores["total"] = (

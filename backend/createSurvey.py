@@ -2,11 +2,9 @@ import requests
 import os
 from typing import List
 from questionGenerator import generate_questions
-from models.models import Assessment
+from models.models import Assessment, Question
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
-from models.models import Question
-from datetime import datetime
 
 def create_survey(survey_name: str):
     url = "https://api.salesparrow.com/v3/surveys"
@@ -20,7 +18,8 @@ def create_survey(survey_name: str):
     }
 
     response = requests.post(url, headers=headers, json=data)
-    return response.json()
+    print(f"Survey created: {response.json()}")
+    return response.json()["data"]
 
 def create_question(survey_id: int, question: str, question_type: str, choices: List[str] = None):
     url = "https://api.salesparrow.com/v3/questions"
@@ -42,7 +41,8 @@ def create_question(survey_id: int, question: str, question_type: str, choices: 
     
 
     response = requests.post(url, headers=headers, json=data)
-    return response.json()
+    print(f"Question created: {response.json()}")
+    return response.json()["data"]
 
 def create_channel(name: str, survey_id: int):
     url = "https://api.salesparrow.com/v3/channels"
@@ -56,9 +56,36 @@ def create_channel(name: str, survey_id: int):
         "type": "LINK"
     }
     response = requests.post(url, headers=headers, json=data)
-    return response.json()
+    print(f"Channel created: {response.json()}")
+    return response.json()["data"]
 
-def create_question_record(assessment_id: int, question: str, question_type: str, job_id: int, choices: dict = None, answer: str = None):
+def create_workflow(survey_id: int, assessment_id: int, db: Session):
+    url = "https://api.salesparrow.com/v3/webhooks"
+    headers = {
+        "Authorization": f"Bearer {os.getenv('SURVEYSPARROW_API_KEY')}",
+        "Content-Type": "application/json"
+    }
+    data = {
+        "url": os.getenv('NGROK_URL') + "/api/submit-answer",
+        "survey_id": survey_id,
+        "http_method": "POST",
+        "payload": {
+            "answers": {}
+        }
+    } 
+    questions = db.query(Question).filter(
+        Question.assessment_id == assessment_id,
+        Question.type != 'CODING'
+    ).all()
+    for question in questions:
+        data["payload"]["answers"][question.properties['question_id']] = f"{{question_{question.properties['question_id']}}}"
+    response = requests.post(url, headers=headers, json=data)
+    print(f"Workflow created -> {response.json()}")
+    return response.json()["data"]
+
+        
+
+def create_question_record(db: Session, assessment_id: int, question: str, question_type: str, job_id: int, question_id: int = None, choices: List[dict] = None, answer: str = None):
     """
     Create a question record in the database.
     
@@ -77,13 +104,14 @@ def create_question_record(assessment_id: int, question: str, question_type: str
         question_properties = {
             "type": question_type,
             "choices": choices if choices else None,
-            "answer": answer if answer else None
+            "answer": answer if answer else None,
+            "question_id": question_id if question_id else None
         }
 
         # Create question in database
         question_record = Question(
             assessment_id=assessment_id,
-            question_text=question,
+            txt=question,
             type=question_type,
             properties=question_properties,
             job_id=job_id
@@ -102,10 +130,9 @@ def create_question_record(assessment_id: int, question: str, question_type: str
             detail=f"Failed to create question record: {str(e)}"
         )
 
-def generateQuestionsAndStore(num_mcq: int, num_openended: int, num_coding: int, difficulty: str, job_role: str, skills: List[str], assessment_id: int, job_id: int):
+def generateQuestionsAndStore(num_mcq: int, num_openended: int, num_coding: int, difficulty: str, job_role: str, skills: List[str], assessment_id: int, job_id: int, db: Session):
     questions = generate_questions(num_mcq, num_openended, num_coding, difficulty, job_role, skills)
     survey = create_survey(job_role)
-    channel = create_channel(job_role, survey_id)
     survey_id = survey["id"]
     # Create assessment properties
     assessment_properties = {
@@ -115,25 +142,43 @@ def generateQuestionsAndStore(num_mcq: int, num_openended: int, num_coding: int,
         "num_coding": num_coding,
         "skills": skills,
     }
-    
-    with Session() as db:
-        db.query(Assessment).filter(Assessment.id == assessment_id).update({
-            "properties": assessment_properties,
-            "assessment_link": channel.data.url,
-            "updated_at": datetime.utcnow()
-        })
-        db.commit()
-
-    for question_type in questions.questions:
-        for question in question_type:
+    print(f"Questions-> {questions}")
+    for question_type, questions_list in questions["questions"].items():
+        for question in questions_list:
+            print(f"Question-> {question}")
+            params = {
+                "db": db,
+                "assessment_id": assessment_id,
+                "question": question["question"],
+                "question_type": question_type,
+                "job_id": job_id
+            }
             if question_type == "mcq":
                 if "choices" in question and question["choices"]:
                     newChoices = []
                     if isinstance(question["choices"], dict):
                         for key, choice in question["choices"].items():
-                            newChoices.append({"text": question["choices"][key]})     
-                create_question(survey_id, question["question"], question_type, newChoices)
-                create_question_record(assessment_id, question["question"], question_type, job_id, newChoices)
+                            print(f"Choice-> {choice}")
+                            newChoices.append({"text": choice})  
+                params["choices"] = newChoices
+                created_question = create_question(survey_id, question["question"], question_type, newChoices)
+                params["question_id"] = created_question["id"]
+                if "answer" in question:
+                    params["answer"] = question["choices"][question["answer"]]
+                create_question_record(**params)
             elif question_type == "openended":
-                create_question(survey_id, question["question"], question_type)
+                created_question = create_question(survey_id, question["question"], question_type)
+                params["question_id"] = created_question["id"]
+                create_question_record(**params)
+            elif question_type == "coding":
+                create_question_record(**params)
+
+    channel = create_channel(job_role, survey["id"])
+    db.query(Assessment).filter(Assessment.id == assessment_id).update({
+            "properties": assessment_properties,
+            "assessment_link": channel["url"]
+        })
+    db.commit()
+    create_workflow(survey["id"], assessment_id, db)
+    return {"success": True}
 
