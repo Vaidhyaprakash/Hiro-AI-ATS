@@ -1,4 +1,4 @@
-from fastapi import FastAPI, UploadFile, File, HTTPException, BackgroundTasks, WebSocket, Depends, Request
+from fastapi import FastAPI, UploadFile, File, HTTPException, BackgroundTasks, WebSocket, Depends, Request, Form
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, EmailStr
 from typing import List, Optional
@@ -33,7 +33,7 @@ from models.models import Candidate, CandidateStatus, Job, AttitudeAnalysis
 import uuid
 from candidate_analytics import get_candidate_performance_metrics
 
-from models.models import Candidate, CandidateStatus, Job
+from models.models import Candidate, CandidateStatus, Job, Interviewer, Interview
 from questionGenerator import generate_questions
 from paperCorrection import correct_answer, paper_correction
 from createSurvey import generateQuestionsAndStore
@@ -828,3 +828,144 @@ def convert_difficulty(assessment):
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True) 
+
+@app.post("/api/update/candidate-assessment/{candidate_id}/job/{job_id}")
+async def map_candidate_to_first_assessment(candidate_id: int, job_id: int, db: Session = Depends(get_db)):
+    # Get first assessment for this job
+    first_assessment = db.query(Assessment)\
+        .filter(Assessment.job_id == job_id)\
+        .order_by(Assessment.id)\
+        .first()
+
+    if not first_assessment:
+        raise HTTPException(status_code=404, detail="No assessments found for this job")
+
+    # Create new candidate assessment for first assessment
+    new_candidate_assessment = CandidateAssessment(
+        candidate_id=candidate_id,
+        assessment_id=first_assessment.id,
+        status="NOT_STARTED"
+    )
+    db.add(new_candidate_assessment)
+    db.commit()
+    
+    return {
+        "message": "Candidate mapped to first assessment successfully",
+        "assessment_id": first_assessment.id,
+        "candidate_assessment_id": new_candidate_assessment.id
+    }
+
+@app.post("/api/update/candidate-assessment/{candidate_assessment_id}/{candidate_id}/job/{job_id}")
+async def update_candidate_assessment(candidate_assessment_id: int, candidate_id: int, job_id: int, db: Session = Depends(get_db)):
+    # Get current candidate assessment
+    candidate_assessment = db.query(CandidateAssessment).filter(CandidateAssessment.id == candidate_assessment_id).first()
+    
+    # Mark current assessment as completed
+    candidate_assessment.status = "COMPLETED"
+    db.commit()
+
+    # Get all assessments for this job ordered by ID
+    assessments = db.query(Assessment)\
+        .filter(Assessment.job_id == job_id)\
+        .order_by(Assessment.id)\
+        .all()
+
+    # Find current assessment index
+    current_index = next((i for i, a in enumerate(assessments) if a.id == candidate_assessment.assessment_id), -1)
+    
+    # Get next assessment if available
+    next_assessment = None
+    if current_index < len(assessments) - 1:
+        next_assessment = assessments[current_index + 1]
+        
+        # Create new candidate assessment for next assessment
+        new_candidate_assessment = CandidateAssessment(
+            candidate_id=candidate_id,
+            assessment_id=next_assessment.id,
+            status="NOT_STARTED"
+        )
+        db.add(new_candidate_assessment)
+        
+    db.commit()
+    
+    return {
+        "message": "Candidate assessment updated successfully",
+        "next_assessment_id": next_assessment.id if next_assessment else None
+    }
+
+
+@app.get("/api/asssementa/{assessment_id}/candidates")
+async def get_candiates_based_on_assessment_id(assessment_id: int, db: Session = Depends(get_db)):
+    """
+    Get all candidates and their assessment data for a specific assessment.
+    """
+    candidates = db.query(Candidate, CandidateAssessment)\
+        .join(CandidateAssessment, Candidate.id == CandidateAssessment.candidate_id)\
+        .filter(CandidateAssessment.assessment_id == assessment_id)\
+        .all()
+    
+    result = []
+    for candidate, assessment in candidates:
+        candidate_dict = {
+            "id": candidate.id,
+            "name": candidate.name,
+            "email": candidate.email,
+            "phone": candidate.phone,
+            "location": candidate.location,
+            "status": candidate.status,
+            "assessment_status": assessment.status,
+            "assessment_id": assessment.assessment_id,
+            "candidate_assessment_id": assessment.id,
+            "score": assessment.overall_score,
+            "honesty_score": assessment.honesty_score,
+            "created_at": assessment.created_at,
+            "updated_at": assessment.updated_at,
+            "assessment_link": assessment.assessment_link,
+            "assessment_title": assessment.title,
+            "assessment_type": assessment.type,
+            "assessment_difficulty": assessment.difficulty
+        }
+        result.append(candidate_dict)
+        
+    return result
+
+@app.post("/api/interviewer/{candidate_id}/{job_id}")
+async def create_interviewer(
+    candidate_id: int,
+    job_id: int,
+    name: str = Form(...),
+    email: str = Form(...),
+    feedback: str = Form(...),
+    db: Session = Depends(get_db)
+):
+    """
+    Create a new interviewer record
+    """
+    # Check if interviewer with email already exists
+    existing_interviewer = db.query(Interviewer).filter(Interviewer.email == email).first()
+    if existing_interviewer:
+        interviewer = existing_interviewer
+    else:
+        interviewer = Interviewer(
+            name=name,
+            email=email
+        )
+        db.add(interviewer)
+        db.commit()
+        db.refresh(interviewer)
+    interview = Interview(
+        interviewer_id=interviewer.id,
+        feedback=feedback,
+        candidate_id=candidate_id,
+        job_id=job_id
+    )
+    db.add(interview)
+    db.commit()
+    db.refresh(interview)
+    return {
+        "message": "Interviewer created successfully",
+        "id": interviewer.id,
+        "name": interviewer.name,
+        "email": interviewer.email,
+        "interview_id": interview.id
+    }
