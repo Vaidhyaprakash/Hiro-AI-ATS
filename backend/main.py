@@ -729,6 +729,32 @@ async def get_leads_for_job(
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True) 
 
+@app.post("/api/update/candidate-assessment/{candidate_id}/job/{job_id}")
+async def map_candidate_to_first_assessment(candidate_id: int, job_id: int, db: Session = Depends(get_db)):
+    # Get first assessment for this job
+    first_assessment = db.query(Assessment)\
+        .filter(Assessment.job_id == job_id)\
+        .order_by(Assessment.id)\
+        .first()
+
+    if not first_assessment:
+        raise HTTPException(status_code=404, detail="No assessments found for this job")
+
+    # Create new candidate assessment for first assessment
+    new_candidate_assessment = CandidateAssessment(
+        candidate_id=candidate_id,
+        assessment_id=first_assessment.id,
+        status="NOT_STARTED"
+    )
+    db.add(new_candidate_assessment)
+    db.commit()
+    
+    return {
+        "message": "Candidate mapped to first assessment successfully",
+        "assessment_id": first_assessment.id,
+        "candidate_assessment_id": new_candidate_assessment.id
+    }
+
 @app.post("/api/update/candidate-assessment/{candidate_assessment_id}/{candidate_id}/job/{job_id}")
 async def update_candidate_assessment(candidate_assessment_id: int, candidate_id: int, job_id: int, db: Session = Depends(get_db)):
     # Get current candidate assessment
