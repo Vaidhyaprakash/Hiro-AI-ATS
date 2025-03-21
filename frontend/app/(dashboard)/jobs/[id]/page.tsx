@@ -57,6 +57,7 @@ export default function JobDetailsPage() {
   const params = useParams();
   const router = useRouter();
   const [job, setJob] = useState<JobDetails | null>(null);
+  const [assessmentsCount, setAssessmentsCount] = useState<any>({});
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -87,6 +88,17 @@ export default function JobDetailsPage() {
         
         const data = await response.json();
         setJob(data);
+        for (const assessment of data.assessments) {
+          const responseCandidates = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/assessments/${assessment.id}/candidates`);
+          const dataCandidates = await responseCandidates.json();
+          if(dataCandidates.total_count > 0) {
+            setAssessmentsCount({
+              ...assessmentsCount,
+              [assessment.id]: dataCandidates.total_candidates
+            });
+          }
+          
+        }
         const responseCandidates = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/jobs/${params.id}/candidates`);
         const dataCandidates = await responseCandidates.json();
         console.log(dataCandidates);
@@ -238,12 +250,17 @@ export default function JobDetailsPage() {
                 >
                   Screened ({screenedCandidates.length || 0 })
                 </TabsTrigger>
-                <TabsTrigger
-                  value="assessment"
-                  className="data-[state=active]:border-b-2 data-[state=active]:border-[#4b7a3e] data-[state=active]:text-[#4b7a3e] rounded-none bg-transparent h-10 px-4"
-                >
-                  Assessment ({assessmentCandidates.length || 0})
-                </TabsTrigger>
+                {job.assessments?.length > 0 && job.assessments.filter(assessment => 
+                  assessment.type === 'aptitude_test' || assessment.type === 'technical_test'
+                ).map((assessment) => (
+                  <TabsTrigger
+                    key={assessment.id}
+                    value={`assessment-${assessment.id}`}
+                    className="data-[state=active]:border-b-2 data-[state=active]:border-[#4b7a3e] data-[state=active]:text-[#4b7a3e] rounded-none bg-transparent h-10 px-4"
+                  >
+                    {assessment.title} ({assessmentsCount[assessment.id] || 0})
+                  </TabsTrigger>
+                ))}
                 <TabsTrigger
                   value="interview"
                   className="data-[state=active]:border-b-2 data-[state=active]:border-[#4b7a3e] data-[state=active]:text-[#4b7a3e] rounded-none bg-transparent h-10 px-4"
@@ -329,6 +346,7 @@ export default function JobDetailsPage() {
 
                       <AssessmentList jobs={[job]} candidates={assessmentCandidates} fetchCandidates={handleCandidatesFetch}/>
                     </div>
+
                   </TabsContent>
 
                   <TabsContent value="interview" className="mt-0">
@@ -352,7 +370,7 @@ export default function JobDetailsPage() {
                   <TabsContent value="hired" className="mt-0">
                   <div className="bg-white rounded-lg shadow-sm p-6">
                       <div className="flex justify-between items-center mb-6">
-                        <h2 className="text-2xl font-semibold text-[#4b7a3e]">Interview Candidates</h2>
+                        <h2 className="text-2xl font-semibold text-[#4b7a3e]">Hired Candidates</h2>
                         <div className="flex items-center gap-2">
                           <Button variant="outline" size="icon" className="rounded-full">
                             <Settings className="h-4 w-4" />
@@ -366,6 +384,32 @@ export default function JobDetailsPage() {
                       <HiredCandidatesList jobs={[job]} candidates={hiredCandidates} fetchCandidates={handleCandidatesFetch}/>
                     </div>
                   </TabsContent>
+                  {job.assessments?.length > 0 && job.assessments.filter(assessment => 
+                    assessment.type === 'aptitude_test' || assessment.type === 'technical_test'
+                  ).map((assessment) => (
+                    <TabsContent key={assessment.id} value={`assessment-${assessment.id}`} className="mt-0">
+                      <div className="bg-white rounded-lg shadow-sm p-6">
+                        <div className="flex justify-between items-center mb-6">
+                          <h2 className="text-2xl font-semibold text-[#4b7a3e]">{assessment.title} Candidates</h2>
+                          <div className="flex items-center gap-2">
+                            <Button variant="outline" size="icon" className="rounded-full">
+                              <Settings className="h-4 w-4" />
+                            </Button>
+                            <Button variant="outline" size="icon" className="rounded-full">
+                              <Mail className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+
+                        <AssessmentList 
+                          jobs={[job]} 
+                          candidates={[]} 
+                          fetchCandidates={handleCandidatesFetch}
+                          assessment={assessment}
+                        />
+                      </div>
+                    </TabsContent>
+                  ))}
                   <TabsContent value="smarthire" className="mt-0">
                   <div className="bg-white rounded-lg shadow-sm p-6">
                       <div className="flex justify-between items-center mb-6">

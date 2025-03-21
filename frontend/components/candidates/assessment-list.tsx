@@ -41,9 +41,10 @@ interface CandidatesListProps {
     updated_at: string;
   }[]
   fetchCandidates: () => void
+  assessment: object
 }
 
-export function AssessmentList({ jobs, candidates, fetchCandidates }: CandidatesListProps) {
+export function AssessmentList({ jobs, assessment }: CandidatesListProps) {
   const [selectAll, setSelectAll] = useState(false)
   const [selectedCandidates, setSelectedCandidates] = useState<string[]>([])
   const [isClient, setIsClient] = useState(false)
@@ -52,8 +53,17 @@ export function AssessmentList({ jobs, candidates, fetchCandidates }: Candidates
   // const candidates = job?.candidates || []
   
   // Only run date formatting on the client
+  const [candidates, setCandidates] = useState<any[]>([])
+  const fetchCandidates = async () => {
+    if (!assessment.id) return
+    console.log("assessment.id", assessment.id);
+    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/assessments/${assessment.id}/candidates`)
+    const data = await response.json()
+    setCandidates(data?.candidates || [])
+  }
   useEffect(() => {
     setIsClient(true)
+    fetchCandidates()
   }, [])
 
   const handleSelectAll = () => {
@@ -80,19 +90,6 @@ export function AssessmentList({ jobs, candidates, fetchCandidates }: Candidates
     },
    })
     fetchCandidates()
-  }
-
-  const renderRating = (rating: number) => {
-    return (
-      <div className="flex">
-        {[1, 2, 3, 4, 5].map((star) => (
-          <Star
-            key={star}
-            className={`h-4 w-4 ${star <= rating ? "text-yellow-400 fill-yellow-400" : "text-gray-300"}`}
-          />
-        ))}
-      </div>
-    )
   }
 
   const formatDate = (dateString: string) => {

@@ -470,7 +470,7 @@ const CandidateSummary = ({candidate, analysingCandidate, setAnalysingCandidate}
                         </div>
                       </div>
                       <div>
-                        <h4 className="font-medium mb-2">Weaknesses</h4>
+                        <h4 className="font-medium mb-2">Concentration Required Areas</h4>
                         <div className="flex flex-wrap gap-2">
                           {analyticsData.strengths_weaknesses.weaknesses.map((weakness: string, index: number) => (
                             <Badge key={index} variant="outline" className="bg-red-50 text-red-700 border-red-200">
