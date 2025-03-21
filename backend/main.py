@@ -2,7 +2,7 @@ from fastapi import FastAPI, UploadFile, File, HTTPException, BackgroundTasks, W
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, EmailStr
 from typing import List, Optional
-from models.models import CandidateAssessment, Assessment, AssessmentStatus, Question as DBQuestion, QuestionType, Answer
+from models.models import CandidateAssessment, Assessment, AssessmentStatus, Question as DBQuestion, QuestionType, Answer as DBAnswer
 from sqlalchemy.orm import Session
 from database.database import get_db
 import uvicorn
@@ -29,8 +29,7 @@ from applications import create_application_feedback, register_company, CompanyR
 from schemas.schemas import ApplicationFeedbackPayload, JobResponse, ApplicationFeedbackRequest
 import io
 import sys
-from models.models import Candidate, CandidateStatus, Job, AttitudeAnalysis
-import uuid
+from models.models import Candidate, CandidateStatus, Job, AttitudeAnalysis, Lead
 from candidate_analytics import get_candidate_performance_metrics
 
 from models.models import Candidate, CandidateStatus, Job
@@ -42,6 +41,8 @@ from dotenv import load_dotenv
 from ngrok import update_ngrok_url
 from handleWorkflow import handleWorkflow
 from leads import find_candidates, get_job_leads
+from sqlalchemy import func
+from datetime import datetime, timedelta
 
 # Set environment variable to disable the new security behavior
 os.environ['TORCH_FORCE_WEIGHTS_ONLY'] = '0'
@@ -208,6 +209,13 @@ class LeadGenerationRequest(BaseModel):
     job_id: int
     skills: List[str]
     location: str
+
+class RecruitmentAnalytics(BaseModel):
+    hiring_funnel: dict
+    time_to_hire: dict
+    offer_acceptance_rate: float
+    cost_per_hire: float
+    source_effectiveness: dict
 
 @app.websocket("/ws/{candidate_id}")
 async def websocket_handler(websocket: WebSocket, candidate_id: int, db: Session = Depends(get_db)):
@@ -621,7 +629,7 @@ async def submit_answer(submission: AnswerSubmission, db: Session = Depends(get_
             CandidateAssessment.candidate_id == submission.candidateId,
             CandidateAssessment.assessment_id == submission.assessmentId
         ).first()
-        
+        print(candidate_assessment)
         if not candidate_assessment:
             # Create new assessment if it doesn't exist
             candidate_assessment = CandidateAssessment(
@@ -639,9 +647,9 @@ async def submit_answer(submission: AnswerSubmission, db: Session = Depends(get_
             
         db.commit()
         db.refresh(candidate_assessment)
-
+        print("CREATED CANDIDATE ASSESSMENT")
         # Create new answer
-        answer = Answer(
+        answer = DBAnswer(
             question_id=submission.questionId,
             candidate_id=submission.candidateId,
             candidate_assessment_id=candidate_assessment.id,  # Use the actual ID
@@ -725,6 +733,235 @@ async def get_leads_for_job(
     Get all leads for a specific job if smart hire is enabled.
     """
     return await get_job_leads(job_id=job_id, db=db)
+
+@app.get("/api/analytics/recruitment", response_model=RecruitmentAnalytics)
+async def get_recruitment_analytics(db: Session = Depends(get_db)):
+    """
+    Get comprehensive recruitment analytics including:
+    - Hiring funnel stats
+    - Time to hire metrics
+    - Offer acceptance rate
+    - Cost per hire
+    - Source effectiveness
+    """
+    try:
+        # Get hiring funnel data
+        funnel_data = {}
+        for status in CandidateStatus:
+            count = db.query(func.count(Candidate.id)).filter(
+                Candidate.status == status
+            ).scalar()
+            funnel_data[status.value] = count
+
+        # Calculate time to hire (average days between SOURCED and HIRED)
+        hired_candidates = db.query(Candidate).filter(
+            Candidate.status == CandidateStatus.HIRED
+        ).all()
+        
+        total_days = 0
+        for candidate in hired_candidates:
+            hire_time = candidate.updated_at - candidate.created_at
+            total_days += hire_time.days
+        
+        avg_time_to_hire = total_days / len(hired_candidates) if hired_candidates else 0
+
+        # Calculate time to hire trend (last 6 months)
+        time_to_hire_trend = []
+        for i in range(6):
+            start_date = datetime.now() - timedelta(days=(i+1)*30)
+            end_date = datetime.now() - timedelta(days=i*30)
+            
+            month_hires = db.query(Candidate).filter(
+                Candidate.status == CandidateStatus.HIRED,
+                Candidate.updated_at.between(start_date, end_date)
+            ).all()
+            
+            if month_hires:
+                month_avg_days = sum(
+                    (c.updated_at - c.created_at).days 
+                    for c in month_hires
+                ) / len(month_hires)
+            else:
+                month_avg_days = 0
+                
+            time_to_hire_trend.append({
+                "month": end_date.strftime("%b"),
+                "days": round(month_avg_days, 1)
+            })
+
+        # Calculate offer acceptance rate
+        total_offers = db.query(func.count(Candidate.id)).filter(
+            Candidate.status.in_([CandidateStatus.OFFER_EXTENDED, CandidateStatus.HIRED])
+        ).scalar()
+        
+        accepted_offers = db.query(func.count(Candidate.id)).filter(
+            Candidate.status == CandidateStatus.HIRED
+        ).scalar()
+        
+        offer_acceptance_rate = (accepted_offers / total_offers * 100) if total_offers > 0 else 0
+
+        # Get source effectiveness data from leads table
+        source_counts = db.query(
+            Lead.platform,
+            func.count(Lead.id).label('count')
+        ).group_by(
+            Lead.platform
+        ).all()
+
+        total_leads = sum(count for _, count in source_counts)
+        source_effectiveness = {
+            platform: round((count / total_leads * 100), 1) if total_leads > 0 else 0
+            for platform, count in source_counts
+        }
+
+        # If no leads data yet, provide some default platforms with 0%
+        if not source_effectiveness:
+            source_effectiveness = {
+                "LinkedIn": 0,
+                "Referrals": 0,
+                "Job Boards": 0,
+                "Company Website": 0,
+                "Agencies": 0
+            }
+
+        return {
+            "hiring_funnel": funnel_data,
+            "time_to_hire": {
+                "average_days": round(avg_time_to_hire, 1),
+                "trend": time_to_hire_trend
+            },
+            "offer_acceptance_rate": round(offer_acceptance_rate, 1),
+            "cost_per_hire": 4250,  # Mock data, can be calculated based on actual costs
+            "source_effectiveness": source_effectiveness
+        }
+
+    except Exception as e:
+        print(f"Error in get_recruitment_analytics: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/assessments/{assessment_id}/candidates/count")
+async def get_assessment_candidates_count(
+    assessment_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    Get the number of candidates who have taken a specific assessment.
+    Also returns a breakdown of their completion status.
+    
+    Args:
+        assessment_id: ID of the assessment
+        db: Database session
+    
+    Returns:
+        dict: Contains total count and breakdown by status
+    """
+    try:
+        # Get total count and status breakdown using joins
+        status_counts = (
+            db.query(
+                CandidateAssessment.status,
+                func.count(CandidateAssessment.id).label('count')
+            )
+            .join(Candidate, Candidate.id == CandidateAssessment.candidate_id)
+            .filter(CandidateAssessment.assessment_id == assessment_id)
+            .group_by(CandidateAssessment.status)
+            .all()
+        )
+        
+        # Calculate total and create status breakdown
+        total_candidates = sum(count for _, count in status_counts)
+        status_breakdown = {
+            status: count for status, count in status_counts
+        }
+        
+        # If no data found, return zeros
+        if not status_breakdown:
+            status_breakdown = {
+                "NOT_STARTED": 0,
+                "IN_PROGRESS": 0,
+                "COMPLETED": 0
+            }
+            
+        return {
+            "total_candidates": total_candidates,
+            "status_breakdown": status_breakdown,
+            "assessment_id": assessment_id
+        }
+
+    except Exception as e:
+        print(f"Error in get_assessment_candidates_count: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/assessments/{assessment_id}/candidates")
+async def get_assessment_candidates(
+    assessment_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    Get detailed information about all candidates who have taken a specific assessment.
+    Includes candidate personal details, assessment status, and scores.
+    
+    Args:
+        assessment_id: ID of the assessment
+        db: Database session
+    
+    Returns:
+        list: List of candidates with their assessment details
+    """
+    try:
+        # Query candidates with their assessment details using joins
+        candidates_with_assessments = (
+            db.query(
+                Candidate,
+                CandidateAssessment.status.label('assessment_status'),
+                CandidateAssessment.overall_score,
+                CandidateAssessment.honesty_score,
+                CandidateAssessment.created_at.label('assessment_start_date'),
+                CandidateAssessment.updated_at.label('assessment_completion_date')
+            )
+            .join(
+                CandidateAssessment,
+                Candidate.id == CandidateAssessment.candidate_id
+            )
+            .filter(CandidateAssessment.assessment_id == assessment_id)
+            .all()
+        )
+        
+        # Format the response
+        candidates_list = []
+        for candidate, status, score, honesty_score, start_date, completion_date in candidates_with_assessments:
+            candidates_list.append({
+                "candidate_details": {
+                    "id": candidate.id,
+                    "name": candidate.name,
+                    "email": candidate.email,
+                    "phone": candidate.phone,
+                    "location": candidate.location,
+                    "college": candidate.college,
+                    "skills": candidate.skills,
+                    "resume_s3_url": candidate.resume_s3_url,
+                    "resume_score": candidate.resume_score,
+                    "resume_summary": candidate.resume_summary,
+                    "status": candidate.status.value if candidate.status else None,
+                },
+                "assessment_details": {
+                    "status": status,
+                    "overall_score": score,
+                    "honesty_score": honesty_score,
+                    "started_at": start_date.isoformat() if start_date else None,
+                    "completed_at": completion_date.isoformat() if completion_date else None
+                }
+            })
+            
+        return {
+            "assessment_id": assessment_id,
+            "total_candidates": len(candidates_list),
+            "candidates": candidates_list
+        }
+
+    except Exception as e:
+        print(f"Error in get_assessment_candidates: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True) 
