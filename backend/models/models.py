@@ -58,6 +58,7 @@ class Job(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     properties = Column(JSON, nullable=True)
+    smart_hire_enabled = Column(Boolean, default=False)  # Flag to track if smart hire has been triggered
 
     company = relationship("Company", back_populates="jobs")
     candidates = relationship("Candidate", back_populates="job")
@@ -278,7 +279,7 @@ class Lead(Base):
     job_id = Column(Integer, ForeignKey("jobs.id"))  # Reference to the job
     skills = Column(ARRAY(String))  # Array of skills
     location = Column(String)  # Location of the candidate
-    email = Column(String, nullable=True, unique=True)  # Email address if found, unique constraint
+    email = Column(String, nullable=True)  # Email address if found
     contact_info = Column(Text, nullable=True)  # Other contact methods
     subreddit = Column(String)
     status = Column(String, default="NEW")  # NEW, CONTACTED, RESPONDED, REJECTED
