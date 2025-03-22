@@ -17,6 +17,7 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import Image from "next/image"
 
 export default function DashboardLayout({
   children,
@@ -39,7 +40,13 @@ export default function DashboardLayout({
       <div className="flex h-screen w-screen">
         <Sidebar className="w-16 flex-shrink-0 bg-white shadow-sm">
           <SidebarHeader className="flex h-14 items-center justify-center border-b px-4 bg-black text-white">
-            <h1 className="text-xl font-bold">HR</h1>
+            <Image 
+              src="/Logo_black.png"
+              alt="Company Logo"
+              width={32}
+              height={32}
+              priority
+            />
           </SidebarHeader>
           <SidebarContent style={{marginTop: '8px'}}>
             <SidebarMenu>

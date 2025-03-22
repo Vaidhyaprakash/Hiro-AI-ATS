@@ -11,7 +11,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@sparrowengg/twigs-react"; // Add this import at the top with other imports
-import { motion, AnimatePresence } from "framer-motion"; // Add this import
+import { motion, AnimatePresence } from "framer-motion";
+import Image from "next/image"// Add this import
 
 import {
   Card,
@@ -122,8 +123,16 @@ export default function SignupPage() {
               transition={{ duration: 0.3 }}
             >
               <Card className="border-none" style={{boxShadow:'none'}}>
-                <CardHeader style={{padding:'24px 24px 48px 24px'}}>
-                  <CardTitle className="text-center" style={{fontSize:'32px'}}>
+                <CardHeader style={{ padding: '24px 24px 48px 24px' }}>
+                  <CardTitle className="text-center" style={{ fontSize: '32px', display:'flex', justifyContent:'center', alignItems:'center', flexDirection:'column' }}>
+                  <Image 
+              src="/Hiro.svg"
+              alt="Company Logo"
+              width={32}
+              height={32}
+                      priority
+                     className="mb-4"
+            />
                   Lets get started
                   </CardTitle>
                   <CardDescription className="text-center" style={{fontSize:'16px', marginTop:'8px'}}>
