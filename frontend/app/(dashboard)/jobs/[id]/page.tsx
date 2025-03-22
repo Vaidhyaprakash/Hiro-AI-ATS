@@ -20,6 +20,8 @@ import { AssessmentList } from "@/components/candidates/assessment-list";
 import { InterviewCandidatesList } from "@/components/candidates/interview-candidates-list";
 import { HiredCandidatesList } from "@/components/candidates/hired-candidates-list";
 import { SmarthireList } from "@/components/candidates/smarthire-list";
+// import { Dialog, DialogBody, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@sparrowengg/twigs-react";
+import { Dialog, DialogHeader, DialogTitle, DialogDescription, DialogBody, DialogFooter, DialogClose, DialogTrigger, DialogContent, FormLabel, Input, IconButton, Box, Button as TwigsButton, Flex } from "@sparrowengg/twigs-react"; import { CloseIcon } from '@sparrowengg/twigs-react-icons'
 
 interface JobDetails {
   id: number;
@@ -79,6 +81,7 @@ export default function JobDetailsPage() {
     []
   );
   const [activeTab, setActiveTab] = useState("new");
+  const [viewDescription, setViewDescription] = useState(false);
 
   useEffect(() => {
     // Ensure we're on the client side and have a valid ID
@@ -187,7 +190,8 @@ export default function JobDetailsPage() {
 
   const handleViewDescription = () => {
     // In a real app, this would open a modal with the job description
-    alert(`Job Description: ${job.job_description}`);
+    setViewDescription(true);
+    console.log(job.job_description, "job.description");
   };
 
   const handleStartScreening = () => {
@@ -663,6 +667,59 @@ export default function JobDetailsPage() {
           </div>
         </div>
       </div>
+      {viewDescription && <Dialog open={viewDescription} onOpenChange={setViewDescription} size="lg">
+  <DialogContent>
+    <DialogHeader
+      css={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "flex-start",
+        justifyContent: "center",
+      }}
+    >
+      <DialogTitle size="md">Job Description</DialogTitle>
+    </DialogHeader>
+    <DialogBody>
+            <Flex>
+              <MarkdownPreview text={job.job_description} />
+      </Flex>
+    </DialogBody>
+    <Box css={{ position: "absolute", top: "$8", right: "$8" }}>
+      <DialogClose asChild>
+        <IconButton
+          size="lg"
+          icon={<CloseIcon />}
+          variant="ghost"
+          aria-label="Close"
+          color="default"
+        />
+      </DialogClose>
+    </Box>
+  </DialogContent>
+</Dialog>}
     </div>
   );
 }
+
+
+const parseText = (text) => {
+  // Convert **text** to bold
+  text = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+  // Convert *text* to semi-bold or italic
+  text = text.replace(/\*(.*?)\*/g, '<em>$1</em>');
+  // Convert lines starting with # to headings
+  text = text.replace(/^# (.*)$/gm, '<h1>$1</h1>');
+  text = text.replace(/^## (.*)$/gm, '<h2>$1</h2>');
+  text = text.replace(/^### (.*)$/gm, '<h3>$1</h3>');
+  text = text.replace(/\n/g, '<br />');
+  
+  return text;
+};
+
+const MarkdownPreview = ({ text }) => {
+  const parsedText = parseText(text);
+
+  return (
+    <div dangerouslySetInnerHTML={{ __html: parsedText }} />
+  );
+};

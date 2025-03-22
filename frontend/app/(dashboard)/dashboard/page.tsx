@@ -225,11 +225,11 @@ export default function DashboardPage() {
                     config={{
                       applications: {
                         label: "Applications",
-                        color: "hsl(var(--chart-1))",
+                        color: "hsl(215, 70%, 60%)",
                       },
                       hires: {
                         label: "Hires",
-                        color: "hsl(var(--chart-2))",
+                        color: "hsl(145, 63%, 42%)",
                       },
                     }}
                   >
@@ -240,8 +240,22 @@ export default function DashboardPage() {
                         <YAxis />
                         <ChartTooltip content={<ChartTooltipContent />} />
                         <Legend />
-                        <Line type="monotone" dataKey="applications" stroke="var(--color-applications)" strokeWidth={2} />
-                        <Line type="monotone" dataKey="hires" stroke="var(--color-hires)" strokeWidth={2} />
+                        <Line 
+                          type="monotone" 
+                          dataKey="applications" 
+                          stroke="hsl(215, 70%, 60%)" 
+                          strokeWidth={2}
+                          activeDot={{ r: 6 }}
+                          dot={{ r: 4 }}
+                        />
+                        <Line 
+                          type="monotone" 
+                          dataKey="hires" 
+                          stroke="hsl(145, 63%, 42%)" 
+                          strokeWidth={2}
+                          activeDot={{ r: 6 }}
+                          dot={{ r: 4 }}
+                        />
                       </LineChart>
                     </ResponsiveContainer>
                   </ChartContainer>
@@ -264,11 +278,11 @@ export default function DashboardPage() {
                     config={{
                       openings: {
                         label: "Open Positions",
-                        color: "hsl(var(--chart-3))",
+                        color: "hsl(280, 65%, 60%)",
                       },
                       applications: {
                         label: "Applications",
-                        color: "hsl(var(--chart-4))",
+                        color: "hsl(30, 80%, 55%)",
                       },
                     }}
                   >
@@ -276,12 +290,24 @@ export default function DashboardPage() {
                       <BarChart data={departmentData}>
                         <CartesianGrid strokeDasharray="3 3" />
                         <XAxis dataKey="department" />
-                        <YAxis yAxisId="left" orientation="left" stroke="var(--color-openings)" />
-                        <YAxis yAxisId="right" orientation="right" stroke="var(--color-applications)" />
+                        <YAxis yAxisId="left" orientation="left" stroke="hsl(280, 65%, 60%)" />
+                        <YAxis yAxisId="right" orientation="right" stroke="hsl(30, 80%, 55%)" />
                         <ChartTooltip content={<ChartTooltipContent />} />
                         <Legend />
-                        <Bar yAxisId="left" dataKey="openings" fill="var(--color-openings)" name="Open Positions" />
-                        <Bar yAxisId="right" dataKey="applications" fill="var(--color-applications)" name="Applications" />
+                        <Bar 
+                          yAxisId="left" 
+                          dataKey="openings" 
+                          fill="hsl(280, 65%, 60%)" 
+                          name="Open Positions"
+                          radius={[4, 4, 0, 0]}
+                        />
+                        <Bar 
+                          yAxisId="right" 
+                          dataKey="applications" 
+                          fill="hsl(30, 80%, 55%)" 
+                          name="Applications"
+                          radius={[4, 4, 0, 0]}
+                        />
                       </BarChart>
                     </ResponsiveContainer>
                   </ChartContainer>
