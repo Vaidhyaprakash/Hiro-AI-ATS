@@ -43,6 +43,7 @@ from handleWorkflow import handleWorkflow, callPaperCorrection
 from leads import find_candidates, get_job_leads
 from sqlalchemy import func
 from datetime import datetime, timedelta
+import requests
 import uuid
 
 # Set environment variable to disable the new security behavior
@@ -1244,5 +1245,40 @@ async def create_interviewer(
         "email": interviewer.email,
         "interview_id": interview.id
     }
+
+@app.post("/api/call/{phone_number}")
+async def initiate_call(phone_number: str):
+    """
+    Initiates a call to the provided phone number by calling an external ngrok URL.
+    
+    Args:
+        phone_number: The phone number to call
+        
+    Returns:
+        dict: Response from the external service or error details
+    """
+    try:
+        # Replace this with your actual ngrok URL for the calling service
+        calling_service_url = "https://adjusted-quick-lizard.ngrok-free.app/api/start_interview"
+        
+        # Make request to the external service
+        response = requests.post(
+            calling_service_url,
+            json={"phone_number": phone_number}
+        )
+        
+        # Check if the request was successful
+        if response.status_code == 200:
+            return response.json()
+        else:
+            return {
+                "success": False,
+                "message": f"External service returned status code: {response.status_code}",
+                "details": response.text
+            }
+            
+    except Exception as e:
+        print(f"Error initiating call: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to initiate call: {str(e)}")
 
 

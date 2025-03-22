@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useSelector } from "react-redux"
-import { Star, Info, Download, ArrowRight, X, Loader2 } from "lucide-react"
+import { Star, Info, Download, ArrowRight, X, Loader2, PhoneIcon } from "lucide-react"
 // import { Checkbox } from "@/components/ui/checkbox"
 import type { RootState } from "@/lib/redux/store"
 import { Checkbox } from "../ui/checkbox"
@@ -106,6 +106,41 @@ export function ScreenedCandidatesList({ jobs, candidates, fetchCandidates }: Ca
       })
     } catch {
       return "-"
+    }
+  }
+  const callInitialCandidate = async (candidatePhone: string) => {
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/call/${candidatePhone}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*",
+          "Access-Control-Allow-Methods": "POST, OPTIONS",
+          "Access-Control-Allow-Headers": "Content-Type"
+        },
+        body: JSON.stringify({
+          phone_number: candidatePhone
+        }),
+        mode: "cors" // Explicitly set CORS mode
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to start interview');
+      }
+      
+      const data = await response.json();
+      toast({
+        variant: "success", 
+        title: "Interview call initiated", 
+        description: "The system is calling the candidate now"
+      });
+    } catch (error) {
+      console.error("Error starting interview:", error);
+      toast({
+        variant: "error", 
+        title: "Failed to start interview", 
+        description: "Please try again later"
+      });
     }
   }
 
@@ -222,6 +257,28 @@ export function ScreenedCandidatesList({ jobs, candidates, fetchCandidates }: Ca
               <td className="py-4">
                 {loading === candidate.id ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                 {loading !== candidate.id && <div className="flex space-x-3">
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button 
+                          variant="ghost" 
+                          size="icon"
+                          className="h-8 w-8 text-green-800 hover:text-green-900 hover:bg-green-50"
+                          onClick={async () => {
+                            // You'll implement this functionality later
+                            if(candidate?.phone) {
+                              callInitialCandidate(candidate.phone)
+                            }
+                          }}
+                        >
+                          <PhoneIcon className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Initial Call</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
