@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { ArrowLeftIcon, X } from "lucide-react"
-import { Flex, Stepper, StepperItem, toast, Dialog, DialogHeader, DialogTitle, DialogDescription, DialogBody, DialogFooter, DialogClose, DialogTrigger, DialogContent, FormLabel, IconButton, Box, Button as TwigsButton, Textarea as TwigsTextarea } from "@sparrowengg/twigs-react";
+import { Flex, Stepper, StepperItem, toast, Dialog, DialogHeader, DialogTitle, DialogDescription, DialogBody, DialogFooter, DialogClose, DialogTrigger, DialogContent, FormLabel, IconButton, Box, Button as TwigsButton, Textarea as TwigsTextarea, Select } from "@sparrowengg/twigs-react";
 
 import { AssessmentComponent } from "./assessment-component"
 import { CloseIcon } from '@sparrowengg/twigs-react-icons'
@@ -195,6 +195,7 @@ export function JobFormModal({ isOpen, onClose }: JobFormModalProps) {
   const employmentTypes = ["Full-time", "Part-time", "Contract", "Temporary", "Internship"]
 
   const locations = [
+    "Chennai, India",
     "New York, NY",
     "San Francisco, CA",
     "London, UK",
@@ -516,43 +517,31 @@ export function JobFormModal({ isOpen, onClose }: JobFormModalProps) {
                     <div className="grid gap-4 md:grid-cols-2">
                       <div className="space-y-2">
                         <Label htmlFor="department">Department</Label>
-                        <select
-                          id="department"
-                          name="department"
-                          value={formData.department}
-                          onChange={handleChange}
-                          className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                          required
-                        >
-                          <option value="" disabled>
-                            Select department
-                          </option>
-                          {departments.map((dept) => (
-                            <option key={dept} value={dept}>
-                              {dept}
-                            </option>
-                          ))}
-                        </select>
+                        <Select
+                          size="lg"
+                          value={departments.find(dept => dept.value === formData.department)}
+                          onChange={(option) => setFormData(prev => ({ ...prev, department: option.value }))}
+                          placeholder="Select department"
+                          options={departments.map(dept => ({
+                            label: dept,
+                            value: dept
+                          }))}
+                          css={{ width: "100%" }}
+                        />
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="employmentType">Employment Type</Label>
-                        <select
-                          id="employmentType"
-                          name="employmentType"
-                          value={formData.employmentType}
-                          onChange={handleChange}
-                          className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                          required
-                        >
-                          <option value="" disabled>
-                            Select employment type
-                          </option>
-                          {employmentTypes.map((type) => (
-                            <option key={type} value={type}>
-                              {type}
-                            </option>
-                          ))}
-                        </select>
+                        <Select
+                          size="lg"
+                          value={employmentTypes.find(type => type.value === formData.employmentType)}
+                          onChange={(option) => setFormData(prev => ({ ...prev, employmentType: option.value }))}
+                          placeholder="Select employment type"
+                          options={employmentTypes.map(type => ({
+                            label: type,
+                            value: type
+                          }))}
+                          css={{ width: "100%" }}
+                        />
                       </div>
                     </div>
                     <div className="grid gap-4 md:grid-cols-2">
@@ -581,23 +570,17 @@ export function JobFormModal({ isOpen, onClose }: JobFormModalProps) {
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="location">Job Location</Label>
-                      <select
-                        id="location"
-                        name="location"
-                        value={formData.location}
-                        onChange={handleChange}
-                        className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                        required
-                      >
-                        <option value="" disabled>
-                          Select location
-                        </option>
-                        {locations.map((loc) => (
-                          <option key={loc} value={loc}>
-                            {loc}
-                          </option>
-                        ))}
-                      </select>
+                      <Select
+                        size="lg"
+                        value={locations.find(loc => loc.value === formData.location)}
+                        onChange={(option) => setFormData(prev => ({ ...prev, location: option.value }))}
+                        placeholder="Select location"
+                        options={locations.map(loc => ({
+                          label: loc,
+                          value: loc
+                        }))}
+                        css={{ width: "100%" }}
+                      />
                     </div>
                     
                     <div className="space-y-2">
