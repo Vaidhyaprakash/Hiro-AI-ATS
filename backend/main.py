@@ -1009,19 +1009,13 @@ async def get_assessment_candidates(
     """
     Get detailed information about all candidates who have taken a specific assessment.
     Includes candidate personal details, assessment status, and scores.
-    
-    Args:
-        assessment_id: ID of the assessment
-        db: Database session
-    
-    Returns:
-        list: List of candidates with their assessment details
     """
     try:
         # Query candidates with their assessment details using joins
         candidates_with_assessments = (
             db.query(
                 Candidate,
+                CandidateAssessment.id.label('candidate_assessment_id'),
                 CandidateAssessment.status.label('assessment_status'),
                 CandidateAssessment.overall_score,
                 CandidateAssessment.honesty_score,
@@ -1038,7 +1032,15 @@ async def get_assessment_candidates(
         
         # Format the response
         candidates_list = []
-        for candidate, status, score, honesty_score, start_date, completion_date in candidates_with_assessments:
+        for (
+            candidate, 
+            ca_id, 
+            status, 
+            score, 
+            honesty_score, 
+            start_date, 
+            completion_date
+        ) in candidates_with_assessments:
             candidates_list.append({
                 "candidate_details": {
                     "id": candidate.id,
@@ -1052,13 +1054,14 @@ async def get_assessment_candidates(
                     "resume_score": candidate.resume_score,
                     "resume_summary": candidate.resume_summary,
                     "status": candidate.status.value if candidate.status else None,
+                    "candidate_assessment_id": ca_id
                 },
                 "assessment_details": {
                     "status": status,
                     "overall_score": score,
                     "honesty_score": honesty_score,
                     "started_at": start_date.isoformat() if start_date else None,
-                    "completed_at": completion_date.isoformat() if completion_date else None
+                    "completed_at": completion_date.isoformat() if completion_date else None,
                 }
             })
             
@@ -1110,42 +1113,88 @@ async def map_candidate_to_first_assessment(candidate_id: int, job_id: int, db: 
     }
 
 @app.post("/api/update/candidate-assessment/{candidate_assessment_id}/{candidate_id}/job/{job_id}")
-async def update_candidate_assessment(candidate_assessment_id: int, candidate_id: int, job_id: int, db: Session = Depends(get_db)):
-    # Get current candidate assessment
-    candidate_assessment = db.query(CandidateAssessment).filter(CandidateAssessment.id == candidate_assessment_id).first()
-    
-    # Mark current assessment as completed
-    candidate_assessment.status = AssessmentStatus.COMPLETED
-    db.commit()
-
-    # Get all assessments for this job ordered by ID
-    assessments = db.query(Assessment)\
-        .filter(Assessment.job_id == job_id,Assessment.type !="initial_screening")\
-        .order_by(Assessment.id)\
-        .all()
-
-    # Find current assessment index
-    current_index = next((i for i, a in enumerate(assessments) if a.id == candidate_assessment.assessment_id), -1)
-    
-    # Get next assessment if available
-    next_assessment = None
-    if current_index < len(assessments) - 1:
-        next_assessment = assessments[current_index + 1]
+async def update_candidate_assessment(
+    candidate_assessment_id: int, 
+    candidate_id: int, 
+    job_id: int, 
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db)
+):
+    try:
+        # Get current candidate assessment
+        candidate_assessment = db.query(CandidateAssessment).filter(
+            CandidateAssessment.id == candidate_assessment_id,
+            CandidateAssessment.candidate_id == candidate_id
+        ).first()
         
-        # Create new candidate assessment for next assessment
-        new_candidate_assessment = CandidateAssessment(
-            candidate_id=candidate_id,
-            assessment_id=next_assessment.id,
-            status= AssessmentStatus.PENDING
-        )
-        db.add(new_candidate_assessment)
+        if not candidate_assessment:
+            raise HTTPException(status_code=404, detail="Candidate assessment not found")
+
+        # Mark current assessment as completed
+        candidate_assessment.status = AssessmentStatus.COMPLETED
+        candidate_assessment.completed_at = datetime.utcnow()
         
-    db.commit()
-    
-    return {
-        "message": "Candidate assessment updated successfully",
-        "next_assessment_id": next_assessment.id if next_assessment else None
-    }
+        # Get all assessments for this job ordered by ID
+        assessments = db.query(Assessment)\
+            .filter(Assessment.job_id == job_id, Assessment.type != "initial_screening")\
+            .order_by(Assessment.id)\
+            .all()
+
+        # Find current assessment index
+        current_index = next((i for i, a in enumerate(assessments) if a.id == candidate_assessment.assessment_id), -1)
+        
+        # Get next assessment if available
+        next_assessment = None
+        if current_index < len(assessments) - 1:
+            next_assessment = assessments[current_index + 1]
+            
+            # Create new candidate assessment for next assessment
+            new_candidate_assessment = CandidateAssessment(
+                candidate_id=candidate_id,
+                assessment_id=next_assessment.id,
+                status=AssessmentStatus.PENDING
+            )
+            db.add(new_candidate_assessment)
+            
+            # Update candidate status to INTERVIEW for next assessment
+            candidate = db.query(Candidate).filter(Candidate.id == candidate_id).first()
+            if candidate:
+                candidate.status = CandidateStatus.INTERVIEW
+
+            # If next assessment is not an interview, generate questions
+            if next_assessment.type != "interview":
+                # Call question generator API
+                await generate_question_set(
+                    GenerateQuestions(
+                        assessment_id=next_assessment.id,
+                        job_id=job_id
+                    ),
+                    background_tasks=background_tasks,
+                    db=db
+                )
+        else:
+            # No more assessments - update candidate status to HIRED
+            candidate = db.query(Candidate).filter(Candidate.id == candidate_id).first()
+            if candidate:
+                candidate.status = CandidateStatus.HIRED
+        
+        db.commit()
+        
+        if next_assessment:
+            db.refresh(new_candidate_assessment)
+        if candidate:
+            db.refresh(candidate)
+            
+        return {
+            "message": "Candidate assessment updated successfully",
+            "next_assessment_id": next_assessment.id if next_assessment else None,
+            "candidate_status": candidate.status.value if candidate else None
+        }
+            
+    except Exception as e:
+        db.rollback()
+        print(f"Error updating candidate assessment: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get("/api/asssementa/{assessment_id}/candidates")

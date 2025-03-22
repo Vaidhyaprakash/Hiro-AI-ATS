@@ -2,7 +2,15 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { BarChart3, Users, Settings, Mail, UserPlus, ChevronDown, Locate } from "lucide-react";
+import {
+  BarChart3,
+  Users,
+  Settings,
+  Mail,
+  UserPlus,
+  ChevronDown,
+  Locate,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CandidatesList } from "@/components/candidates/candidates-list";
@@ -62,48 +70,65 @@ export default function JobDetailsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [screenedCandidates, setScreenedCandidates] = useState<Candidate[]>([]);
-  const [interviewCandidates, setInterviewCandidates] = useState<Candidate[]>([]);
+  const [interviewCandidates, setInterviewCandidates] = useState<Candidate[]>(
+    []
+  );
   const [hiredCandidates, setHiredCandidates] = useState<Candidate[]>([]);
   const [newCandidates, setNewCandidates] = useState<Candidate[]>([]);
-  const [assessmentCandidates, setAssessmentCandidates] = useState<Candidate[]>([]);
+  const [assessmentCandidates, setAssessmentCandidates] = useState<Candidate[]>(
+    []
+  );
   const [activeTab, setActiveTab] = useState("new");
 
   useEffect(() => {
     // Ensure we're on the client side and have a valid ID
-    if (typeof window === 'undefined' || !params?.id) return;
+    if (typeof window === "undefined" || !params?.id) return;
 
     const fetchJobDetails = async () => {
       try {
         const response = await fetch(
           `${process.env.NEXT_PUBLIC_API_URL}/api/jobs/${params.id}`
         );
-        
+
         if (!response.ok) {
           if (response.status === 404) {
-            router.push('/jobs');
+            router.push("/jobs");
             return;
           }
-          throw new Error(`Failed to fetch job details: ${response.status} ${response.statusText}`);
+          throw new Error(
+            `Failed to fetch job details: ${response.status} ${response.statusText}`
+          );
         }
-        
+
         const data = await response.json();
         console.log(data);
         setJob(data);
         const count = {};
         for (const assessment of data.assessments) {
-          const responseCandidates =  await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/assessments/${assessment.id}/candidates`);
+          const responseCandidates = await fetch(
+            `${process.env.NEXT_PUBLIC_API_URL}/api/assessments/${assessment.id}/candidates`
+          );
           const dataCandidates = await responseCandidates.json();
           console.log("dataCandidates", dataCandidates);
-          count[assessment.id] = dataCandidates.total_candidates;
+          const completedCandidates = dataCandidates.candidates.filter(
+            (candidate) => candidate.assessment_details.status !== "completed"
+          );
+          count[assessment.id] = completedCandidates.length;
         }
         setAssessmentsCount(count);
-        const responseCandidates = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/jobs/${params.id}/candidates`);
+        const responseCandidates = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL}/api/jobs/${params.id}/candidates`
+        );
         const dataCandidates = await responseCandidates.json();
         console.log(dataCandidates);
         setCandidates(dataCandidates);
       } catch (err) {
         console.error("Error fetching job details:", err);
-        setError(err instanceof Error ? err.message : 'An error occurred while fetching job details');
+        setError(
+          err instanceof Error
+            ? err.message
+            : "An error occurred while fetching job details"
+        );
       } finally {
         setLoading(false);
       }
@@ -113,11 +138,21 @@ export default function JobDetailsPage() {
   }, [params?.id, router]);
 
   useEffect(() => {
-    const screenedCandidates = candidates.filter(candidate => candidate.status === 'Screening');
-    const interviewCandidates = candidates.filter(candidate => candidate.status === 'Interview');
-    const hiredCandidates = candidates.filter(candidate => candidate.status === 'Hired');
-    const newCandidates = candidates.filter(candidate => candidate.status === "Sourced");
-    const assessmentCandidates = candidates.filter(candidate => candidate.status === 'Assessment');
+    const screenedCandidates = candidates.filter(
+      (candidate) => candidate.status === "Screening"
+    );
+    const interviewCandidates = candidates.filter(
+      (candidate) => candidate.status === "Interview"
+    );
+    const hiredCandidates = candidates.filter(
+      (candidate) => candidate.status === "Hired"
+    );
+    const newCandidates = candidates.filter(
+      (candidate) => candidate.status === "Sourced"
+    );
+    const assessmentCandidates = candidates.filter(
+      (candidate) => candidate.status === "Assessment"
+    );
     setScreenedCandidates(screenedCandidates);
     setInterviewCandidates(interviewCandidates);
     setHiredCandidates(hiredCandidates);
@@ -136,7 +171,7 @@ export default function JobDetailsPage() {
   if (error || !job) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <div className="text-lg text-red-500">{error || 'Job not found'}</div>
+        <div className="text-lg text-red-500">{error || "Job not found"}</div>
       </div>
     );
   }
@@ -156,37 +191,43 @@ export default function JobDetailsPage() {
   };
 
   const handleStartScreening = () => {
-    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/resume/analyze/${params.id}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        job_id: params.id,
-      }),
-    })
-      .then(response => response.json())
-      .then(data => {
+    fetch(
+      `${process.env.NEXT_PUBLIC_API_URL}/api/resume/analyze/${params.id}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          job_id: params.id,
+        }),
+      }
+    )
+      .then((response) => response.json())
+      .then((data) => {
         console.log(data);
-      }).then(() => {
-        fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/jobs/${params.id}/candidates`)
-        .then(response => response.json())
-          .then(data => {
-          setCandidates(data);
-          console.log(data);
-        })
-        .catch(error => console.error('Error fetching candidates:', error));
       })
-      .catch(error => console.error('Error fetching candidates:', error));
+      .then(() => {
+        fetch(
+          `${process.env.NEXT_PUBLIC_API_URL}/api/jobs/${params.id}/candidates`
+        )
+          .then((response) => response.json())
+          .then((data) => {
+            setCandidates(data);
+            console.log(data);
+          })
+          .catch((error) => console.error("Error fetching candidates:", error));
+      })
+      .catch((error) => console.error("Error fetching candidates:", error));
   };
   const handleCandidatesFetch = () => {
     fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/jobs/${params.id}/candidates`)
-      .then(response => response.json())
-      .then(data => {
+      .then((response) => response.json())
+      .then((data) => {
         console.log(data);
         setCandidates(data);
       })
-      .catch(error => console.error('Error fetching candidates:', error));
+      .catch((error) => console.error("Error fetching candidates:", error));
   };
   console.log(job);
   console.log(assessmentsCount, "assessmentsCount");
@@ -220,60 +261,72 @@ export default function JobDetailsPage() {
               <Button variant="outline" onClick={handlePreviewJob}>
                 Preview Job Listing
               </Button>
-              <Button variant="link" className="text-blue-600" onClick={handleViewDescription}>
+              <Button
+                variant="link"
+                className="text-blue-600"
+                onClick={handleViewDescription}
+              >
                 View Job Description
               </Button>
             </div>
 
-            <Tabs 
+            <Tabs
               defaultValue={job.smart_hire_enabled ? "smarthire" : "new"}
               className="w-full"
               onValueChange={(value) => setActiveTab(value)}
             >
               <TabsList className="bg-transparent border-b w-full justify-start h-auto p-0 mb-6">
-              <TabsTrigger
+                <TabsTrigger
                   value="smarthire"
                   className="data-[state=active]:border-b-2 data-[state=active]:border-[#4b7a3e] data-[state=active]:text-[#4b7a3e] rounded-none bg-transparent h-10 px-4"
                 >
-                  Smart Hire 
+                  Smart Hire
                 </TabsTrigger>
                 <TabsTrigger
                   value="new"
                   className="data-[state=active]:border-b-2 data-[state=active]:border-[#4b7a3e] data-[state=active]:text-[#4b7a3e] rounded-none bg-transparent h-10 px-4"
                 >
-                  New ({newCandidates.length ||0})
+                  New ({newCandidates.length || 0})
                 </TabsTrigger>
                 <TabsTrigger
                   value="screen"
                   className="data-[state=active]:border-b-2 data-[state=active]:border-[#4b7a3e] data-[state=active]:text-[#4b7a3e] rounded-none bg-transparent h-10 px-4"
                 >
-                  Screened ({screenedCandidates.length || 0 })
+                  Screened ({screenedCandidates.length || 0})
                 </TabsTrigger>
-                {job.assessments?.length > 0 && job.assessments.filter(assessment => 
-                  assessment.type === 'aptitude_test' || assessment.type === 'technical_test'
-                ).map((assessment) => (
-                  <TabsTrigger
-                    key={assessment.id}
-                    value={`assessment-${assessment.id}`}
-                    className="data-[state=active]:border-b-2 data-[state=active]:border-[#4b7a3e] data-[state=active]:text-[#4b7a3e] rounded-none bg-transparent h-10 px-4"
-                  >
-                    {assessment.title} ({assessmentsCount[assessment.id] || 0})
-                  </TabsTrigger>
-                ))}
-                {job.assessments?.length > 0 && job.assessments.filter(assessment =>
-                  assessment.type === 'interview'
-                ).map((assessment) => {
-                  console.log(assessment);
-                  return (
-                    <TabsTrigger
-                      key={assessment.id}
-                      value={`assessment-${assessment.id}`}
-                      className="data-[state=active]:border-b-2 data-[state=active]:border-[#4b7a3e] data-[state=active]:text-[#4b7a3e] rounded-none bg-transparent h-10 px-4"
-                    >
-                      {assessment.title} ({assessmentsCount[assessment.id] || 0})
-                    </TabsTrigger>
-                  )
-                })}
+                {job.assessments?.length > 0 &&
+                  job.assessments
+                    .filter(
+                      (assessment) =>
+                        assessment.type === "aptitude_test" ||
+                        assessment.type === "technical_test"
+                    )
+                    .map((assessment) => (
+                      <TabsTrigger
+                        key={assessment.id}
+                        value={`assessment-${assessment.id}`}
+                        className="data-[state=active]:border-b-2 data-[state=active]:border-[#4b7a3e] data-[state=active]:text-[#4b7a3e] rounded-none bg-transparent h-10 px-4"
+                      >
+                        {assessment.title} (
+                        {assessmentsCount[assessment.id] || 0})
+                      </TabsTrigger>
+                    ))}
+                {job.assessments?.length > 0 &&
+                  job.assessments
+                    .filter((assessment) => assessment.type === "interview")
+                    .map((assessment) => {
+                      console.log(assessment);
+                      return (
+                        <TabsTrigger
+                          key={assessment.id}
+                          value={`assessment-${assessment.id}`}
+                          className="data-[state=active]:border-b-2 data-[state=active]:border-[#4b7a3e] data-[state=active]:text-[#4b7a3e] rounded-none bg-transparent h-10 px-4"
+                        >
+                          {assessment.title} (
+                          {assessmentsCount[assessment.id] || 0})
+                        </TabsTrigger>
+                      );
+                    })}
                 {/* <TabsTrigger
                   value="interview"
                   className="data-[state=active]:border-b-2 data-[state=active]:border-[#4b7a3e] data-[state=active]:text-[#4b7a3e] rounded-none bg-transparent h-10 px-4"
@@ -287,8 +340,11 @@ export default function JobDetailsPage() {
                   Hired ({hiredCandidates.length || 0})
                 </TabsTrigger>
                 <div className="ml-auto flex items-center">
-                
-                  <Button variant="ghost" size="sm" className="flex items-center gap-1">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="flex items-center gap-1"
+                  >
                     More
                     <ChevronDown className="h-3 w-3" />
                   </Button>
@@ -306,15 +362,28 @@ export default function JobDetailsPage() {
                   <TabsContent value="new" className="mt-0">
                     <div className="bg-white rounded-lg shadow-sm p-6">
                       <div className="flex justify-between items-center mb-6">
-                        <h2 className="text-2xl font-semibold text-[#4b7a3e]">New Candidates</h2>
+                        <h2 className="text-2xl font-semibold text-[#4b7a3e]">
+                          New Candidates
+                        </h2>
                         <div className="flex items-center gap-2">
-                          <Button variant="outline" size="icon" className="rounded-full">
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="rounded-full"
+                          >
                             <Settings className="h-4 w-4" />
                           </Button>
-                          <Button variant="outline" size="icon" className="rounded-full">
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="rounded-full"
+                          >
                             <Mail className="h-4 w-4" />
                           </Button>
-                          <Button className="bg-white text-black border hover:bg-gray-100" onClick={handleStartScreening}>
+                          <Button
+                            className="bg-white text-black border hover:bg-gray-100"
+                            onClick={handleStartScreening}
+                          >
                             <UserPlus className="h-4 w-4 mr-2" />
                             Start Screening
                           </Button>
@@ -328,38 +397,65 @@ export default function JobDetailsPage() {
                   <TabsContent value="screen" className="mt-0">
                     <div className="bg-white rounded-lg shadow-sm p-6">
                       <div className="flex justify-between items-center mb-6">
-                        <h2 className="text-2xl font-semibold text-[#4b7a3e]">Screened Candidates</h2>
+                        <h2 className="text-2xl font-semibold text-[#4b7a3e]">
+                          Screened Candidates
+                        </h2>
                         <div className="flex items-center gap-2">
-                          <Button variant="outline" size="icon" className="rounded-full">
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="rounded-full"
+                          >
                             <Settings className="h-4 w-4" />
                           </Button>
-                          <Button variant="outline" size="icon" className="rounded-full">
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="rounded-full"
+                          >
                             <Mail className="h-4 w-4" />
                           </Button>
                         </div>
                       </div>
 
-                      <ScreenedCandidatesList jobs={[job]} candidates={screenedCandidates} fetchCandidates={handleCandidatesFetch}/>
+                      <ScreenedCandidatesList
+                        jobs={[job]}
+                        candidates={screenedCandidates}
+                        fetchCandidates={handleCandidatesFetch}
+                      />
                     </div>
                   </TabsContent>
 
                   <TabsContent value="assessment" className="mt-0">
-                  <div className="bg-white rounded-lg shadow-sm p-6">
+                    <div className="bg-white rounded-lg shadow-sm p-6">
                       <div className="flex justify-between items-center mb-6">
-                        <h2 className="text-2xl font-semibold text-[#4b7a3e]">Assessment Candidates</h2>
+                        <h2 className="text-2xl font-semibold text-[#4b7a3e]">
+                          Assessment Candidates
+                        </h2>
                         <div className="flex items-center gap-2">
-                          <Button variant="outline" size="icon" className="rounded-full">
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="rounded-full"
+                          >
                             <Settings className="h-4 w-4" />
                           </Button>
-                          <Button variant="outline" size="icon" className="rounded-full">
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="rounded-full"
+                          >
                             <Mail className="h-4 w-4" />
                           </Button>
                         </div>
                       </div>
 
-                      <AssessmentList jobs={[job]} candidates={assessmentCandidates} fetchCandidates={handleCandidatesFetch}/>
+                      <AssessmentList
+                        jobs={[job]}
+                        candidates={assessmentCandidates}
+                        fetchCandidates={handleCandidatesFetch}
+                      />
                     </div>
-
                   </TabsContent>
 
                   {/* <TabsContent value="interview" className="mt-0">
@@ -381,91 +477,153 @@ export default function JobDetailsPage() {
                   </TabsContent> */}
 
                   <TabsContent value="hired" className="mt-0">
-                  <div className="bg-white rounded-lg shadow-sm p-6">
+                    <div className="bg-white rounded-lg shadow-sm p-6">
                       <div className="flex justify-between items-center mb-6">
-                        <h2 className="text-2xl font-semibold text-[#4b7a3e]">Hired Candidates</h2>
+                        <h2 className="text-2xl font-semibold text-[#4b7a3e]">
+                          Hired Candidates
+                        </h2>
                         <div className="flex items-center gap-2">
-                          <Button variant="outline" size="icon" className="rounded-full">
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="rounded-full"
+                          >
                             <Settings className="h-4 w-4" />
                           </Button>
-                          <Button variant="outline" size="icon" className="rounded-full">
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="rounded-full"
+                          >
                             <Mail className="h-4 w-4" />
                           </Button>
                         </div>
                       </div>
 
-                      <HiredCandidatesList jobs={[job]} candidates={hiredCandidates} fetchCandidates={handleCandidatesFetch}/>
+                      <HiredCandidatesList
+                        jobs={[job]}
+                        candidates={hiredCandidates}
+                        fetchCandidates={handleCandidatesFetch}
+                      />
                     </div>
                   </TabsContent>
-                  {job.assessments?.length > 0 && job.assessments.filter(assessment => 
-                    assessment.type === 'aptitude_test' || assessment.type === 'technical_test'
-                  ).map((assessment) => (
-                    <TabsContent key={assessment.id} value={`assessment-${assessment.id}`} className="mt-0">
-                      <div className="bg-white rounded-lg shadow-sm p-6">
-                        <div className="flex justify-between items-center mb-6">
-                          <h2 className="text-2xl font-semibold text-[#4b7a3e]">{assessment.title} Candidates</h2>
-                          <div className="flex items-center gap-2">
-                            <Button variant="outline" size="icon" className="rounded-full">
-                              <Settings className="h-4 w-4" />
-                            </Button>
-                            <Button variant="outline" size="icon" className="rounded-full">
-                              <Mail className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </div>
+                  {job.assessments?.length > 0 &&
+                    job.assessments
+                      .filter(
+                        (assessment) =>
+                          assessment.type === "aptitude_test" ||
+                          assessment.type === "technical_test"
+                      )
+                      .map((assessment) => (
+                        <TabsContent
+                          key={assessment.id}
+                          value={`assessment-${assessment.id}`}
+                          className="mt-0"
+                        >
+                          <div className="bg-white rounded-lg shadow-sm p-6">
+                            <div className="flex justify-between items-center mb-6">
+                              <h2 className="text-2xl font-semibold text-[#4b7a3e]">
+                                {assessment.title} Candidates
+                              </h2>
+                              <div className="flex items-center gap-2">
+                                <Button
+                                  variant="outline"
+                                  size="icon"
+                                  className="rounded-full"
+                                >
+                                  <Settings className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="icon"
+                                  className="rounded-full"
+                                >
+                                  <Mail className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </div>
 
-                        <AssessmentList 
-                          jobs={[job]} 
-                          candidates={[]} 
-                          fetchCandidates={handleCandidatesFetch}
-                          assessment={assessment}
-                        />
-                      </div>
-                    </TabsContent>
-                  ))}
-                  {job.assessments?.length > 0 && job.assessments.filter(assessment => 
-                    assessment.type === 'interview'
-                  ).map((assessment) => {
-                    console.log(assessment, "interview");
-                    return (
-                      <TabsContent key={assessment.id} value={`assessment-${assessment.id}`} className="mt-0">
-                        <div className="bg-white rounded-lg shadow-sm p-6">
-                          <div className="flex justify-between items-center mb-6">
-                          <h2 className="text-2xl font-semibold text-[#4b7a3e]">{assessment.title} Candidates</h2>
-                          <div className="flex items-center gap-2">
-                            <Button variant="outline" size="icon" className="rounded-full">
-                              <Settings className="h-4 w-4" />
-                            </Button>
-                            <Button variant="outline" size="icon" className="rounded-full">
-                              <Mail className="h-4 w-4" />
-                            </Button>
+                            <AssessmentList
+                              jobs={[job]}
+                              candidates={[]}
+                              fetchCandidates={handleCandidatesFetch}
+                              assessment={assessment}
+                            />
                           </div>
-                        </div>
+                        </TabsContent>
+                      ))}
+                  {job.assessments?.length > 0 &&
+                    job.assessments
+                      .filter((assessment) => assessment.type === "interview")
+                      .map((assessment) => {
+                        console.log(assessment, "interview");
+                        return (
+                          <TabsContent
+                            key={assessment.id}
+                            value={`assessment-${assessment.id}`}
+                            className="mt-0"
+                          >
+                            <div className="bg-white rounded-lg shadow-sm p-6">
+                              <div className="flex justify-between items-center mb-6">
+                                <h2 className="text-2xl font-semibold text-[#4b7a3e]">
+                                  {assessment.title} Candidates
+                                </h2>
+                                <div className="flex items-center gap-2">
+                                  <Button
+                                    variant="outline"
+                                    size="icon"
+                                    className="rounded-full"
+                                  >
+                                    <Settings className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    variant="outline"
+                                    size="icon"
+                                    className="rounded-full"
+                                  >
+                                    <Mail className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </div>
 
-                        <InterviewCandidatesList 
-                          jobs={[job]} 
-                          candidates={[]} 
-                          assessment={assessment}
-                        />
-                      </div>
-                      </TabsContent>
-                    )
-                  })}
+                              <InterviewCandidatesList
+                                jobs={[job]}
+                                candidates={[]}
+                                assessment={assessment}
+                              />
+                            </div>
+                          </TabsContent>
+                        );
+                      })}
                   <TabsContent value="smarthire" className="mt-0">
-                  <div className="bg-white rounded-lg shadow-sm p-6">
+                    <div className="bg-white rounded-lg shadow-sm p-6">
                       <div className="flex justify-between items-center mb-6">
-                        <h2 className="text-2xl font-semibold text-[#4b7a3e]">Smart Hire Candidates</h2>
+                        <h2 className="text-2xl font-semibold text-[#4b7a3e]">
+                          Smart Hire Candidates
+                        </h2>
                         <div className="flex items-center gap-2">
-                          <Button variant="outline" size="icon" className="rounded-full">
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="rounded-full"
+                          >
                             <Settings className="h-4 w-4" />
                           </Button>
-                          <Button variant="outline" size="icon" className="rounded-full">
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="rounded-full"
+                          >
                             <Mail className="h-4 w-4" />
                           </Button>
                         </div>
                       </div>
 
-                      <SmarthireList jobs={[job]} candidates={[]} fetchCandidates={handleCandidatesFetch}/>
+                      <SmarthireList
+                        jobs={[job]}
+                        candidates={[]}
+                        fetchCandidates={handleCandidatesFetch}
+                      />
                     </div>
                   </TabsContent>
                 </motion.div>
@@ -491,7 +649,14 @@ export default function JobDetailsPage() {
                 </div>
                 <div>
                   <h3 className="font-medium">Open</h3>
-                  <p>{Math.floor((new Date().getTime() - new Date(job.created_at).getTime()) / (1000 * 60 * 60 * 24))} Days</p>
+                  <p>
+                    {Math.floor(
+                      (new Date().getTime() -
+                        new Date(job.created_at).getTime()) /
+                        (1000 * 60 * 60 * 24)
+                    )}{" "}
+                    Days
+                  </p>
                 </div>
               </div>
             </div>
@@ -500,4 +665,4 @@ export default function JobDetailsPage() {
       </div>
     </div>
   );
-} 
+}

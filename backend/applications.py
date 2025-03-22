@@ -232,8 +232,6 @@ async def get_application_feedback(
 
         return {
             "candidate_id": candidate.id,
-            "application_id": application.id,
-            "status": application.status,
             "message": "Application submitted successfully"
         }
 
