@@ -18,7 +18,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Flex, Text, Textarea, toast, Input } from "@sparrowengg/twigs-react"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Flex, Text, Textarea, toast, Input, Select } from "@sparrowengg/twigs-react"
 import { TickIcon } from "@sparrowengg/twigs-react-icons"
 // import { formatDistanceToNow } from "@/lib/utils"
 
@@ -46,8 +46,31 @@ interface CandidatesListProps {
   assessment: object
 }
 
+// Add this constant outside the component
+const INTERVIEWERS = [
+  { label: "John Smith", value: "John Smith", score: 90 },
+  { label: "Sarah Johnson", value: "Sarah Johnson", score: 85 },
+  { label: "Michael Chen", value: "Michael Chen", score: 95 },
+  { label: "Priya Patel", value: "Priya Patel", score: 80 },
+  { label: "David Wilson", value: "David Wilson", score: 75 },
+  { label: "Emma Rodriguez", value: "Emma Rodriguez", score: 88 },
+  { label: "James Lee", value: "James Lee", score: 92 },
+  { label: "Olivia Brown", value: "Olivia Brown", score: 78 },
+  { label: "William Garcia", value: "William Garcia", score: 83 },
+  { label: "Sophia Martinez", value: "Sophia Martinez", score: 87 },
+  { label: "Benjamin Taylor", value: "Benjamin Taylor", score: 91 },
+  { label: "Ava Anderson", value: "Ava Anderson", score: 84 },
+  { label: "Ethan Thomas", value: "Ethan Thomas", score: 79 },
+  { label: "Isabella Jackson", value: "Isabella Jackson", score: 93 },
+  { label: "Alexander White", value: "Alexander White", score: 86 },
+  { label: "Mia Harris", value: "Mia Harris", score: 82 },
+  { label: "Daniel Martin", value: "Daniel Martin", score: 89 },
+  { label: "Charlotte Thompson", value: "Charlotte Thompson", score: 77 },
+  { label: "Matthew Robinson", value: "Matthew Robinson", score: 94 },
+  { label: "Amelia Clark", value: "Amelia Clark", score: 81 }
+];
+
 export function InterviewCandidatesList({ jobs, assessment }: CandidatesListProps) {
-  console.log(assessment, "assessment");
   const [selectAll, setSelectAll] = useState(false)
   const [selectedCandidates, setSelectedCandidates] = useState<string[]>([])
   const [isClient, setIsClient] = useState(false)
@@ -403,7 +426,11 @@ export function InterviewCandidatesList({ jobs, assessment }: CandidatesListProp
 }
 const FeedbackModal = ({ show, onClose, onSave, job_id, candidate_id }: { show: boolean, onClose: () => void, onSave: (candidateId: number) => void, job_id: number, candidate_id: number }) => {
   const [interviewDetails, setInterviewDetails] = useState("");
-  const [interviewName, setInterviewName] = useState("");
+  const [selectedInterviewer, setSelectedInterviewer] = useState<{
+    label: string;
+    value: string;
+    score: number;
+  } | null>(null);
   const [email, setEmail] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [apiResponse, setApiResponse] = useState<any>(null);
@@ -420,7 +447,8 @@ const FeedbackModal = ({ show, onClose, onSave, job_id, candidate_id }: { show: 
         },
         body: JSON.stringify({ 
           feedback: interviewDetails,
-          name: interviewName,
+          name: selectedInterviewer?.value,
+          score: selectedInterviewer?.score,
           email: email,
           candidate_id: candidate_id,
           job_id: job_id
@@ -514,11 +542,40 @@ const FeedbackModal = ({ show, onClose, onSave, job_id, candidate_id }: { show: 
             flexDirection: 'column',
             gap: '8px'
           }}>
-            <Text size="sm" weight="medium">Interview Name</Text>
-            <Input 
-              placeholder="Enter interview name" 
-              value={interviewName}
-              onChange={(e) => setInterviewName(e.target.value)}
+            <Text size="sm" weight="medium">Interviewer</Text>
+            <Select
+              size="lg"
+              placeholder="Select interviewer"
+              value={INTERVIEWERS.find( data=>selectedInterviewer===data.label)}
+              onChange={(option: any) => {
+                console.log(option, "option")
+                setSelectedInterviewer(option);
+              }}
+              components={{
+                Option: (props) => (
+                  <Flex css={{
+                    padding: '8px',
+                    justifyContent: 'space-between',
+                    cursor: 'pointer',
+                    zIndex: '1000',
+                    '&:hover': {
+                      backgroundColor: 'var(--colors-gray2)',
+                    }
+                  }}
+                    onClick={() => {
+                      setSelectedInterviewer(props.data.label)
+                    }}
+                  >
+                    <Text>{props.data.label}</Text>
+                    <Text css={{
+                      color: props.data.score >= 90 ? '#005844' : 
+                             props.data.score >= 80 ? 'orange' : 
+                             'red'
+                    }} >{props.data.score}</Text>
+                  </Flex>
+                )
+              }}
+              options={INTERVIEWERS}
             />
           </Flex>
           
@@ -562,7 +619,7 @@ const FeedbackModal = ({ show, onClose, onSave, job_id, candidate_id }: { show: 
           
           <Button 
             onClick={() => handleSubmit(candidate_id, job_id)}
-            disabled={isSubmitting || !interviewDetails || !interviewName || !email}
+            disabled={isSubmitting || !interviewDetails || !selectedInterviewer || !email}
           >
             {isSubmitting ? (
               <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Submitting</>
